@@ -9,5 +9,6 @@ data class RegisterRequest(
     @field:NotBlank @field:Size(min = 6) val password: String,
     @field:NotBlank val firstName: String,
     @field:NotBlank val lastName: String,
+    val provider: String
 
 )

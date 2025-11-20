@@ -1,12 +1,15 @@
 package com.fitlyfe.fitlyfe_backend.auth.application.controller
 
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.AuthResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.LoginRequest
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.RedirectResponse
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.RefreshRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RegisterRequest
-import com.fitlyfe.fitlyfe_backend.auth.application.dto.TokenResponse
-import com.fitlyfe.fitlyfe_backend.auth.application.dto.UserResponse
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.SocialLoginRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.service.AuthService
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -18,10 +21,22 @@ class AuthController(
     private val authService: AuthService,
 ) {
     @PostMapping("/register")
-    fun userRegister(@Valid @RequestBody request: RegisterRequest): ResponseEntity<UserResponse> =
-        ResponseEntity.ok(authService.userRegister(request))
+    fun register(@Valid @RequestBody request: RegisterRequest): ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.register(request))
 
     @PostMapping("/login")
-    fun userLogin(@Valid @RequestBody request: LoginRequest): ResponseEntity<TokenResponse> =
-        ResponseEntity.ok(authService.userLogin(request))
+    fun login(@Valid @RequestBody request: LoginRequest): ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.login(request))
+
+    @PostMapping("/refresh")
+    fun refresh(@Valid @RequestBody request: RefreshRequest) : ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.refresh(request))
+
+    @PostMapping("/social-login")
+    fun socialLogin(@Valid @RequestBody request: SocialLoginRequest): ResponseEntity<RedirectResponse> =
+        ResponseEntity.ok(authService.socialLogin(request))
+
+    @GetMapping("/social-login/callback")
+    fun socialLoginCallBack(@Valid code: String): ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.socialLoginCallback(code))
 }
