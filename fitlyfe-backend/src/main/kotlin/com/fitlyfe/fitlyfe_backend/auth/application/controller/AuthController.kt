@@ -2,6 +2,7 @@ package com.fitlyfe.fitlyfe_backend.auth.application.controller
 
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.AuthResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.LoginRequest
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.LogoutResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RedirectResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RefreshRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RegisterRequest
@@ -39,4 +40,9 @@ class AuthController(
     @GetMapping("/social-login/callback")
     fun socialLoginCallBack(@Valid code: String): ResponseEntity<AuthResponse> =
         ResponseEntity.ok(authService.socialLoginCallback(code))
+
+    @PostMapping("/logout")
+    fun logout(@Valid @RequestBody refreshToken: String): ResponseEntity<LogoutResponse> =
+        ResponseEntity.ok(authService.logout(refreshToken))
+
 }

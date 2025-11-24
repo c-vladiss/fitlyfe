@@ -2,6 +2,7 @@ package com.fitlyfe.fitlyfe_backend.auth.domain.service
 
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.AuthResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.LoginRequest
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.LogoutResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RedirectResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RefreshRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RegisterRequest
@@ -54,6 +55,8 @@ class KeycloakAuthService(
 
     fun socialLoginCallback(code: String): AuthResponse =
         keycloakClient.exchangeCodeForToken(code)
+    fun logout(token: String): LogoutResponse =
+        keycloakClient.logout(token)
 
     private fun toAuthResponse(map: Map<*, *>, provider: String): AuthResponse {
         fun <T> get(key: String): T = map[key] as T
@@ -70,5 +73,4 @@ class KeycloakAuthService(
             provider = provider
         )
     }
-
 }

@@ -1,6 +1,7 @@
 package com.fitlyfe.fitlyfe_backend.auth.infrastructure.keycloak
 
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.AuthResponse
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.LogoutResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.SocialLoginRequest
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.*
@@ -150,5 +151,29 @@ class KeycloakClient (
         )
         val authResponse: AuthResponse = response.body as AuthResponse
         return authResponse
+    }
+
+    fun logout(refreshToken: String): LogoutResponse {
+        val logoutUrl = "$keycloakServerUrl/realms/$keycloakRealm/protocol/openid-connect/logout"
+
+        val body = LinkedMultiValueMap<String, String>().apply {
+            add("client_id", keycloakClientId)
+            add("client_secret", clientSecret)
+            add("refresh_token", refreshToken)
+        }
+
+        val headers = HttpHeaders().apply {
+            contentType = MediaType.APPLICATION_FORM_URLENCODED
+        }
+
+        val request = HttpEntity(body, headers)
+
+        val response = rest.postForEntity(logoutUrl, request, LogoutResponse::class.java)
+
+        if (!response.statusCode.is2xxSuccessful) {
+            throw RuntimeException("Failed to logout from Keycloak: ${response.statusCode}")
+        }
+        val logoutResponse: LogoutResponse = response.body as LogoutResponse
+        return logoutResponse
     }
 }
