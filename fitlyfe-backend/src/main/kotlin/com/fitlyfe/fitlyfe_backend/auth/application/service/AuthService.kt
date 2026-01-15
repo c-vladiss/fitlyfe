@@ -7,6 +7,7 @@ import com.fitlyfe.fitlyfe_backend.auth.application.dto.RedirectResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RefreshRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RegisterRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.SocialLoginRequest
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.SocialLoginCallbackRequest
 import com.fitlyfe.fitlyfe_backend.auth.domain.service.KeycloakAuthService
 import org.springframework.stereotype.Service
 
@@ -22,8 +23,8 @@ class AuthService(
         keycloakAuthService.refresh(request)
     fun socialLogin(request: SocialLoginRequest): RedirectResponse =
         keycloakAuthService.socialLogin(request)
-    fun socialLoginCallback(code: String): AuthResponse =
-        keycloakAuthService.socialLoginCallback(code)
+    fun socialLoginCallback(request: SocialLoginCallbackRequest): AuthResponse =
+        keycloakAuthService.socialLoginCallback(request)
     fun logout(token: String): LogoutResponse =
         keycloakAuthService.logout(token)
 }

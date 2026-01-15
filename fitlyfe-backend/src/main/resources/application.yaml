@@ -22,8 +22,12 @@ spring:
     type: com.zaxxer.hikari.HikariDataSource
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
     properties:
       hibernate:
         format_sql: true
@@ -35,6 +39,5 @@ keycloak:
   realm: ${KEYCLOAK_REALM}
   client-secret: ${KEYCLOAK_CLIENT_SECRET}
   admin-client-id: ${KEYCLOAK_CLIENT_ID}
-  admin-username: ${KEYCLOAK_ADMIN_USERNAME}
-  admin-password: ${KEYCLOAK_ADMIN_PASSWORD}
+
   mobile-callback-uri: ${KEYCLOAK_CALLBACK_URI}

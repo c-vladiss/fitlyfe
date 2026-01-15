@@ -9,9 +9,6 @@ import com.fitlyfe.fitlyfe_backend.auth.application.dto.RegisterRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.SocialLoginRequest
 import com.fitlyfe.fitlyfe_backend.auth.domain.exception.*
 import com.fitlyfe.fitlyfe_backend.auth.infrastructure.keycloak.KeycloakClient
-import com.fitlyfe.fitlyfe_backend.api.user.service.UserService
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fitlyfe.fitlyfe_backend.auth.application.dto.SocialLoginCallbackRequest
 import org.springframework.stereotype.Service
 import org.springframework.web.client.HttpClientErrorException
 
@@ -62,8 +59,8 @@ class KeycloakAuthService(
         return RedirectResponse( redirectUri = redirectUri )
     }
 
-    fun socialLoginCallback(request: SocialLoginCallbackRequest): AuthResponse {
-        val response = keycloakClient.exchangeCodeForToken(request.code, request.codeVerifier)
+    fun socialLoginCallback(code: String): AuthResponse {
+        val response = keycloakClient.exchangeCodeForToken(code)
         // Best effort sync for social login - email might be in token
         try {
              val claims = decodeToken(response.accessToken)

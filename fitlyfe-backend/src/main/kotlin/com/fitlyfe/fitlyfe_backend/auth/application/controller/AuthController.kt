@@ -7,6 +7,7 @@ import com.fitlyfe.fitlyfe_backend.auth.application.dto.RedirectResponse
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RefreshRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.RegisterRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.dto.SocialLoginRequest
+import com.fitlyfe.fitlyfe_backend.auth.application.dto.SocialLoginCallbackRequest
 import com.fitlyfe.fitlyfe_backend.auth.application.service.AuthService
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
@@ -37,9 +38,9 @@ class AuthController(
     fun socialLogin(@Valid @RequestBody request: SocialLoginRequest): ResponseEntity<RedirectResponse> =
         ResponseEntity.ok(authService.socialLogin(request))
 
-    @GetMapping("/social-login/callback")
-    fun socialLoginCallBack(@Valid code: String): ResponseEntity<AuthResponse> =
-        ResponseEntity.ok(authService.socialLoginCallback(code))
+    @PostMapping("/social-login/callback")
+    fun socialLoginCallBack(@Valid @RequestBody request: SocialLoginCallbackRequest): ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.socialLoginCallback(request))
 
     @PostMapping("/logout")
     fun logout(@Valid @RequestBody refreshToken: String): ResponseEntity<LogoutResponse> =

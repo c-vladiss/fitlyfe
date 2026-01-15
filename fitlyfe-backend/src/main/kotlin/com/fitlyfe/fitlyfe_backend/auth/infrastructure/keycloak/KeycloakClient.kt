@@ -24,10 +24,6 @@ class KeycloakClient (
     private val keycloakClientId: String,
     @Value("\${keycloak.client-secret}")
     private val clientSecret: String,
-    @Value("\${keycloak.admin-username}")
-    private val adminUsername: String,
-    @Value("\${keycloak.admin-password}")
-    private val adminPassword: String,
     @Value("\${keycloak.mobile-callback-uri}")
     private val mobileCallbackUri: String,
 ) {
@@ -89,12 +85,15 @@ class KeycloakClient (
             .queryParam("response_type", "code")
             .queryParam("scope", scope)
             .queryParam("kc_idp_hint", request.provider)
+            .queryParam("code_challenge", request.codeChallenge)
+            .queryParam("code_challenge_method", "S256")
+            .queryParam("state", request.state)
             .build()
             .toUriString()
         return params
     }
 
-    fun exchangeCodeForToken(code: String): AuthResponse {
+    fun exchangeCodeForToken(code: String, codeVerifier: String): AuthResponse {
         val headers = HttpHeaders().apply {
             contentType = MediaType.APPLICATION_FORM_URLENCODED
         }
@@ -104,6 +103,7 @@ class KeycloakClient (
             add("client_secret", clientSecret)
             add("code", code)
             add("redirect_uri", mobileCallbackUri)
+            add("code_verifier", codeVerifier)
         }
 
         val entity = HttpEntity(body, headers)
@@ -121,7 +121,12 @@ class KeycloakClient (
             contentType = MediaType.APPLICATION_FORM_URLENCODED
         }
 
-        val body = "grant_type=password&client_id=admin-cli&username=$adminUsername&password=$adminPassword"
+        val body = LinkedMultiValueMap<String, String>().apply {
+            add("grant_type", "client_credentials")
+            add("client_id", keycloakClientId)
+            add("client_secret", clientSecret)
+        }
+
         val entity = HttpEntity(body, headers)
         val response = rest.postForEntity(
             "$keycloakServerUrl/realms/$keycloakRealm/protocol/openid-connect/token",

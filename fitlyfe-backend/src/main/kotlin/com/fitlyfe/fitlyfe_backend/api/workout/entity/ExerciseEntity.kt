@@ -1,23 +1,22 @@
-package com.fitlyfe.fitlyfe_backend.api.user.entity
+package com.fitlyfe.fitlyfe_backend.api.workout.entity
 
 import jakarta.persistence.*
 import java.time.LocalDateTime
 import java.util.UUID
 
 @Entity
-@Table(name = "users")
-data class UserEntity(
+@Table(name = "exercises")
+data class ExerciseEntity(
     @Id
     val id: UUID = UUID.randomUUID(),
 
-    @Column(name = "keycloak_id", unique = true, nullable = false)
-    val keycloakId: UUID,
+    @Column(unique = true)
+    val name: String,
 
-    @Column(nullable = false)
-    val email: String,
+    @Column(name = "muscle_group")
+    val muscleGroup: String? = null,
 
-    @Column(name = "status")
-    val status: String = "ACTIVE",
+    val equipment: String? = null,
 
     @Column(name = "created_at")
     val createdAt: LocalDateTime = LocalDateTime.now(),

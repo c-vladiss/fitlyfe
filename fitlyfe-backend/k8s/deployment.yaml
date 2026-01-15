@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fitlyfe-backend
+  namespace: default
+  labels:
+    app: fitlyfe-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fitlyfe-backend
+  template:
+    metadata:
+      labels:
+        app: fitlyfe-backend
+    spec:
+      containers:
+        - name: fitlyfe-backend
+          image: fitlyfe-backend:latest # Replace with actual registry image
+          imagePullPolicy: IfNotPresent # Good for local k3s testing with imported images
+          ports:
+            - containerPort: 8081
+          env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fitlyfe-secrets
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fitlyfe-secrets
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fitlyfe-secrets
+                  key: DB_PASSWORD
+            - name: KEYCLOAK_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fitlyfe-config
+                  key: KEYCLOAK_SERVER_URL
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                configMapKeyRef:
+                  name: fitlyfe-config
+                  key: KEYCLOAK_REALM
+            # Add other env vars as needed

@@ -10,21 +10,26 @@ class UserService(
     private val userRepository: UserRepository,
 ) {
     fun getOrCreate(keycloakId: String, email: String): UserEntity {
-        val keycloakSub: UUID = UUID.fromString(keycloakId)
-        val existing = userRepository.findById(keycloakSub)
-        if(existing.isPresent) return existing.get()
+        val kId: UUID = UUID.fromString(keycloakId)
+        val existing = userRepository.findByKeycloakId(kId)
+        
+        if (existing != null) {
+            if (existing.email != email) {
+                val updated = existing.copy(email = email, updatedAt = java.time.LocalDateTime.now())
+                return userRepository.save(updated)
+            }
+            return existing
+        }
 
         val newUser = UserEntity(
-            keycloakSub = keycloakSub,
-            userId = UUID.randomUUID(),
-            email = email,
-            displayName = email
+            keycloakId = kId,
+            email = email
         )
 
         return userRepository.save(newUser)
     }
 
-    fun getUserById(userId: String): UserEntity {
+    fun getUserById(userId: String): UserEntity? {
         return userRepository.findById(UUID.fromString(userId)).orElse(null)
     }
 }

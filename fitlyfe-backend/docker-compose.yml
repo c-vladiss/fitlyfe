@@ -1,0 +1,40 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/fitlyfe
+      - DB_USERNAME=fitlyfe
+      - DB_PASSWORD=fitlyfe
+      - KEYCLOAK_SERVER_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=fitlyfe
+      - KEYCLOAK_CLIENT_ID=fitlyfe-backend
+      - KEYCLOAK_CLIENT_SECRET=secret
+      - KEYCLOAK_ISSUER_URI=http://keycloak:8080/realms/fitlyfe
+    depends_on:
+      - postgres
+      - keycloak
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=fitlyfe
+      - POSTGRES_USER=fitlyfe
+      - POSTGRES_PASSWORD=fitlyfe
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
