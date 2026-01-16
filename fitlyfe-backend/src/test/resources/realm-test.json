@@ -1,0 +1,77 @@
+{
+    "realm": "fitlyfe",
+    "enabled": true,
+    "users": [
+        {
+            "username": "user",
+            "email": "user@fitlyfe.com",
+            "enabled": true,
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": "password"
+                }
+            ],
+            "realmRoles": [
+                "user"
+            ]
+        }
+    ],
+    "roles": {
+        "realm": [
+            {
+                "name": "user",
+                "description": "User role"
+            },
+            {
+                "name": "admin",
+                "description": "Admin role"
+            }
+        ]
+    },
+    "clients": [
+        {
+            "clientId": "fitlyfe-backend",
+            "enabled": true,
+            "publicClient": false,
+            "bearerOnly": false,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "test-secret",
+            "directAccessGrantsEnabled": true,
+            "serviceAccountsEnabled": true,
+            "standardFlowEnabled": true,
+            "protocol": "openid-connect",
+            "redirectUris": [
+                "*"
+            ],
+            "protocolMappers": [
+                {
+                    "name": "Client Host",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usersessionmodel-note-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "user.session.note": "clientHost",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "claim.name": "clientHost",
+                        "jsonType.label": "String"
+                    }
+                },
+                {
+                    "name": "Client IP Address",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usersessionmodel-note-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "user.session.note": "clientAddress",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "claim.name": "clientAddress",
+                        "jsonType.label": "String"
+                    }
+                }
+            ]
+        }
+    ]
+}

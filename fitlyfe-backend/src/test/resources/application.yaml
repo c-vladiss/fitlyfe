@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:16:///fitlyfe
+    username: test
+    password: test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+keycloak:
+  server-url: http://localhost:8080
+  realm: test-realm
+  client-secret: test-secret
+  admin-client-id: test-client
+  mobile-callback-uri: http://localhost:8080/callback
+
+spring.security.oauth2.resourceserver.jwt.issuer-uri: http://localhost:8080/realms/test-realm
