@@ -21,31 +21,41 @@ abstract class AbstractIntegrationTest {
         }
 
         @Container
-        val keycloak = KeycloakContainer("quay.io/keycloak/keycloak:26.0.0").apply {
+        val keycloak: KeycloakContainer = object : KeycloakContainer("quay.io/keycloak/keycloak:26.0.0") {
+            override fun start() {
+                super.start()
+                setupServiceAccountRoles()
+            }
+
+            private fun setupServiceAccountRoles() {
+                // Configure kcadm credentials
+                var result = execInContainer(
+                    "/opt/keycloak/bin/kcadm.sh", "config", "credentials",
+                    "--server", "http://localhost:8080",
+                    "--realm", "master",
+                    "--user", "admin",
+                    "--password", "admin"
+                )
+                if (result.exitCode != 0) {
+                    throw RuntimeException("Failed to config kcadm credentials: ${result.stderr}")
+                }
+
+                // Assign manage-users role to service account
+                result = execInContainer(
+                    "/opt/keycloak/bin/kcadm.sh", "add-roles",
+                    "-r", "fitlyfe",
+                    "--uusername", "service-account-fitlyfe-backend",
+                    "--cclientid", "realm-management",
+                    "--rolename", "manage-users"
+                )
+                if (result.exitCode != 0) {
+                    throw RuntimeException("Failed to add manage-users role: ${result.stderr}")
+                }
+            }
+        }.apply {
             withRealmImportFile("realm-test.json")
             withAdminUsername("admin")
             withAdminPassword("admin")
-        }
-
-        @JvmStatic
-        @org.junit.jupiter.api.BeforeAll
-        fun setupKeycloak() {
-            if (!keycloak.isRunning) {
-                keycloak.start()
-            }
-
-            // Configure kcadm
-            var result = keycloak.execInContainer("/opt/keycloak/bin/kcadm.sh", "config", "credentials", "--server", "http://localhost:8080", "--realm", "master", "--user", "admin", "--password", "admin")
-            if (result.exitCode != 0) {
-                throw RuntimeException("Failed to config kcadm credentials: ${result.stderr}")
-            }
-            
-            // Assign manage-users role to service account
-            // Service account username is service-account-<client-id>
-            result = keycloak.execInContainer("/opt/keycloak/bin/kcadm.sh", "add-roles", "-r", "fitlyfe", "--uusername", "service-account-fitlyfe-backend", "--cclientid", "realm-management", "--rolename", "manage-users")
-             if (result.exitCode != 0) {
-                throw RuntimeException("Failed to add roles: ${result.stderr}")
-            }
         }
 
         @JvmStatic

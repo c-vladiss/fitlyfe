@@ -18,8 +18,8 @@ class SecurityConfig(
         http.csrf { it.disable() }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers(HttpMethod.GET, "/auth/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/auth/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
                     .anyRequest().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->

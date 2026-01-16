@@ -15,6 +15,17 @@
             "realmRoles": [
                 "user"
             ]
+        },
+        {
+            "username": "service-account-fitlyfe-backend",
+            "enabled": true,
+            "serviceAccountClientId": "fitlyfe-backend",
+            "clientRoles": {
+                "realm-management": [
+                    "manage-users",
+                    "view-users"
+                ]
+            }
         }
     ],
     "roles": {
