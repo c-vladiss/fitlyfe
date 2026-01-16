@@ -94,18 +94,17 @@ class KeycloakAuthService(
         val parts = token.split(".")
         if (parts.size < 2) throw IllegalArgumentException("Invalid JWT token")
         val payload = String(java.util.Base64.getUrlDecoder().decode(parts[1]))
-        return objectMapper.readValue(payload, Map::class.java) as Map<String, Any>
+        val typeRef = object : com.fasterxml.jackson.core.type.TypeReference<Map<String, Any>>() {}
+        return objectMapper.readValue(payload, typeRef)
     }
 
     private fun toAuthResponse(map: Map<*, *>, provider: String): AuthResponse {
-        fun <T> get(key: String): T = map[key] as T
-
         return AuthResponse(
-            accessToken = get("access_token"),
-            refreshToken = get("refresh_token"),
-            expiresIn = (get<Number>("expires_in")).toLong(),
-            refreshExpiresIn = (get<Number>("refresh_expires_in")).toLong(),
-            tokenType = get("token_type"),
+            accessToken = map["access_token"] as String,
+            refreshToken = map["refresh_token"] as String,
+            expiresIn = (map["expires_in"] as Number).toLong(),
+            refreshExpiresIn = (map["refresh_expires_in"] as Number).toLong(),
+            tokenType = map["token_type"] as String,
             tokenId = map["id_token"] as String?,
             sessionState = map["session_state"] as String?,
             scope = map["scope"] as String?,

@@ -35,9 +35,11 @@ class JwtAuthConverter(
 
     private fun extractResourceRoles(jwt: Jwt): Collection<GrantedAuthority> {
         val resourceAccess = jwt.getClaim<Map<String, Any>>("resource_access") ?: return emptySet()
-        val resource = resourceAccess[propertiesClientId] as? Map<String, Any> ?: return emptySet()
-        val resourceRoles = resource["roles"] as? Collection<String> ?: return emptySet()
+        val resource = resourceAccess[propertiesClientId] as? Map<*, *> ?: return emptySet()
+        val resourceRoles = resource["roles"] as? Collection<*> ?: return emptySet()
 
-        return resourceRoles.map { SimpleGrantedAuthority("ROLE_${it.uppercase().replace("-", "_")}") }.toSet()
+        return resourceRoles.filterIsInstance<String>()
+            .map { SimpleGrantedAuthority("ROLE_${it.uppercase().replace("-", "_")}") }
+            .toSet()
     }
 }

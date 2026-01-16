@@ -33,7 +33,7 @@ abstract class AbstractIntegrationTest {
             if (!keycloak.isRunning) {
                 keycloak.start()
             }
-            val authServerUrl = keycloak.authServerUrl
+
             // Configure kcadm
             var result = keycloak.execInContainer("/opt/keycloak/bin/kcadm.sh", "config", "credentials", "--server", "http://localhost:8080", "--realm", "master", "--user", "admin", "--password", "admin")
             if (result.exitCode != 0) {
