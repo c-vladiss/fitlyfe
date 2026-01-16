@@ -1,9 +1,10 @@
 spring:
   datasource:
-    url: jdbc:tc:postgresql:16:///fitlyfe
+    # Dummy values, overridden by AbstractIntegrationTest
+    url: jdbc:postgresql://localhost:5432/fitlyfe
     username: test
     password: test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -11,11 +12,15 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/test-realm
+
 keycloak:
   server-url: http://localhost:8080
   realm: test-realm
   client-secret: test-secret
   admin-client-id: test-client
   mobile-callback-uri: http://localhost:8080/callback
-
-spring.security.oauth2.resourceserver.jwt.issuer-uri: http://localhost:8080/realms/test-realm

@@ -1,10 +1,9 @@
 package com.fitlyfe.fitlyfe_backend
 
-import org.junit.jupiter.api.Test
-import org.springframework.boot.test.context.SpringBootTest
+import com.fitlyfe.fitlyfe_backend.common.AbstractIntegrationTest
 
 @SpringBootTest
-class FitlyfeBackendApplicationTests {
+class FitlyfeBackendApplicationTests : AbstractIntegrationTest() {
 
 	@Test
 	fun contextLoads() {
