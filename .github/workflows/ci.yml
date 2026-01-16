@@ -7,39 +7,21 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-    name: Build
+  build_test:
+    name: Build & Test
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: fitlyfe-backend
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-    - name: Build with Gradle
-      run: ./gradlew assemble
-
-  test:
-    name: Test
-    needs: build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: fitlyfe-backend
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-    - name: Run Tests with Gradle
-      run: ./gradlew check
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Verify Code
+        # This will compile, run unit tests, and run integration tests
+        run: ./gradlew check
