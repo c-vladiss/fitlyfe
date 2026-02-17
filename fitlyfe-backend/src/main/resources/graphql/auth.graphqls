@@ -1,0 +1,16 @@
+extend type Mutation {
+    # Called by the mobile app immediately after Supabase sign-in.
+    # Upserts the user in the database and returns whether onboarding is needed.
+    syncUser: SyncUserResult!
+
+    # Called at the end of the onboarding flow to mark it as complete.
+    completeOnboarding: Boolean!
+}
+
+type SyncUserResult {
+    id: ID!
+    email: String!
+    firstName: String
+    lastName: String
+    requiresOnboarding: Boolean!
+}

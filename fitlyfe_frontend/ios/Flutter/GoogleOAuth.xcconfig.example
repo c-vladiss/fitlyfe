@@ -1,0 +1,5 @@
+// Copy this file to GoogleOAuth.xcconfig and fill in your values.
+// GoogleOAuth.xcconfig is gitignored — never commit the real file.
+
+GOOGLE_IOS_CLIENT_ID=your-ios-client-id.apps.googleusercontent.com
+GOOGLE_REVERSED_CLIENT_ID=com.googleusercontent.apps.your-ios-client-id

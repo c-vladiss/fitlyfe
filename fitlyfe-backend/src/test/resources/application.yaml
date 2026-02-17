@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    # Dummy values, overridden by AbstractIntegrationTest
+    url: jdbc:postgresql://localhost:5432/fitlyfe
+    username: test
+    password: test
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+supabase:
+  url: http://localhost:9999

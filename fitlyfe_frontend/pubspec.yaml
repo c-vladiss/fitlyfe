@@ -1,0 +1,40 @@
+name: fitlyfe_frontend
+description: "A new Flutter project."
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_localizations:
+    sdk: flutter
+
+  flutter_secure_storage: ^8.0.0
+  supabase_flutter: ^2.12.0
+  app_links: ^6.4.1
+
+  cupertino_icons: ^1.0.8
+  provider: ^6.0.0
+  fl_chart: ^1.1.1
+  intl: ^0.20.2
+  health: ^13.3.0
+  permission_handler: ^12.0.1
+  shared_preferences: ^2.5.4
+  graphql_flutter: ^5.2.1
+  google_sign_in: ^7.2.0
+  sign_in_with_apple: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  assets:
+    - assets/google_logo.webp
+  uses-material-design: true
+  generate: true

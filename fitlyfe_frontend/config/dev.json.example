@@ -1,0 +1,13 @@
+{
+  "_comment": "Copy this file to config/dev.json and fill in your development values.",
+  "_comment2": "config/dev.json is gitignored — never commit the real file.",
+
+  "SUPABASE_URL": "https://your-project-ref.supabase.co",
+  "SUPABASE_ANON_KEY": "sb_publishable_your_anon_key_here",
+
+  "GOOGLE_WEB_CLIENT_ID": "your-web-client-id.apps.googleusercontent.com",
+  "GOOGLE_IOS_CLIENT_ID": "your-ios-client-id.apps.googleusercontent.com",
+
+  //This is for Android emulator, for ios you can use localhost
+  "API_URL": "http://10.0.2.2:8081/graphql"
+}

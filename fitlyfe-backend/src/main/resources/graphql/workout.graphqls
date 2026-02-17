@@ -1,0 +1,39 @@
+extend type Query {
+    workoutSessions(limit: Int): [WorkoutSession!]!
+}
+
+type WorkoutSession {
+    id: ID!
+    startedAt: String
+    endedAt: String
+    durationSeconds: Int
+    workoutType: String
+    caloriesBurned: Int
+    notes: String
+    exercises: [WorkoutExercise!]!
+}
+
+type WorkoutExercise {
+    id: ID!
+    exercise: Exercise!
+    orderIndex: Int
+    notes: String
+    sets: [ExerciseSet!]!
+}
+
+type Exercise {
+    id: ID!
+    name: String!
+    description: String
+    muscleGroup: String
+    equipment: String
+}
+
+type ExerciseSet {
+    id: ID!
+    setNumber: Int
+    reps: Int
+    weightKg: Float
+    durationSeconds: Int
+    distanceMeters: Float
+}

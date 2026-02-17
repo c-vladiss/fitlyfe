@@ -1,0 +1,55 @@
+name: Frontend CI (Flutter)
+
+on:
+  push:
+    paths:
+      - 'fitlyfe_frontend/**'
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'fitlyfe_frontend/**'
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.20.0'
+          channel: stable
+
+      - name: Install dependencies
+        working-directory: fitlyfe_frontend
+        run: flutter pub get
+
+      # 🔍 Always
+      - name: Analyze
+        working-directory: fitlyfe_frontend
+        run: flutter analyze
+
+      # 🧪 Always
+      - name: Run tests
+        working-directory: fitlyfe_frontend
+        run: flutter test
+
+      # 🏗 Build on push to main (non-tag)
+      - name: Build debug APK
+        if: |
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
+        working-directory: fitlyfe_frontend
+        run: flutter build apk --debug
+
+      # 🚀 Release build ONLY on tag push (v*)
+      - name: Build release App Bundle
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: fitlyfe_frontend
+        run: flutter build appbundle --release

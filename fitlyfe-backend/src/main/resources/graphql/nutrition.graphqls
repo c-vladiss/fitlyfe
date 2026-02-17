@@ -1,0 +1,41 @@
+extend type Query {
+    dailyNutrition(date: String!): DailyNutrition
+}
+
+type DailyNutrition {
+    id: ID!
+    date: String!
+    totalCalories: Int
+    proteinG: Float
+    carbsG: Float
+    fatG: Float
+    waterMl: Int
+    meals: [Meal!]!
+}
+
+type Meal {
+    id: ID!
+    mealType: String
+    loggedAt: String
+    foods: [MealFood!]!
+}
+
+type MealFood {
+    id: ID!
+    food: Food!
+    quantityG: Float
+    calories: Int
+    proteinG: Float
+    carbsG: Float
+    fatG: Float
+}
+
+type Food {
+    id: ID!
+    name: String!
+    brand: String
+    caloriesPer100g: Int
+    proteinPer100g: Float
+    carbsPer100g: Float
+    fatPer100g: Float
+}
