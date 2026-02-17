@@ -50,7 +50,7 @@ class GraphQLService {
     if (kDebugMode) {
       final token = Supabase.instance.client.auth.currentSession?.accessToken;
       debugPrint(
-        'syncUser: Supabase token is ${token == null ? "NULL ⚠️  — request will have no Bearer header" : "present ✓ (${token.substring(0, 20)}...)"}',
+        'syncUser: Supabase token is ${token == null ? "NULL — request will have no Bearer header" : "present (${token.substring(0, 20)}...)"}',
       );
     }
 
