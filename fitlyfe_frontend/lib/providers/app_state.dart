@@ -123,10 +123,16 @@ class AppState extends ChangeNotifier {
   }
 
   /// Call at the last step of OnboardingScreen to mark onboarding complete.
+  /// Updates state optimistically so navigation fires immediately; the backend
+  /// call completes in the background.
   Future<void> completeOnboarding() async {
-    await _graphQLService.completeOnboarding();
     _requiresOnboarding = false;
     notifyListeners();
+    try {
+      await _graphQLService.completeOnboarding();
+    } catch (e) {
+      debugPrint('completeOnboarding backend sync failed: $e');
+    }
   }
 
   void updateUser(User user) {

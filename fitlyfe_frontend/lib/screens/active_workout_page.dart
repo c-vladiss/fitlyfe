@@ -140,7 +140,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.accentGreen.withOpacity(0.1)),
+        border: Border.all(color: AppTheme.accentGreen.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +168,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.backgroundColor.withOpacity(0.5),
+              color: AppTheme.backgroundColor.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Row(

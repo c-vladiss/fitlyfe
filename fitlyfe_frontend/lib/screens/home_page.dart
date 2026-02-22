@@ -25,14 +25,19 @@ class HomePage extends StatelessWidget {
     final user = appState.currentUser;
 
     final caloriesConsumed = nutritionProvider.todayCalories;
-    final caloriesRemaining = (user.dailyCalorieGoal - caloriesConsumed).clamp(0.0, user.dailyCalorieGoal);
+    final caloriesRemaining = (user.dailyCalorieGoal - caloriesConsumed).clamp(
+      0.0,
+      user.dailyCalorieGoal,
+    );
     final caloriesProgress = caloriesConsumed / user.dailyCalorieGoal;
 
     final healthProvider = Provider.of<HealthProvider>(context);
     final workoutProvider = Provider.of<WorkoutProvider>(context);
     final progressProvider = Provider.of<ProgressProvider>(context);
-    
-    final dailyGoals = progressProvider.goals.where((g) => g.category == 'Daily').toList();
+
+    final dailyGoals = progressProvider.goals
+        .where((g) => g.category == 'Daily')
+        .toList();
 
     final steps = healthProvider.steps;
     final stepsProgress = steps / user.dailyStepGoal;
@@ -47,14 +52,22 @@ class HomePage extends StatelessWidget {
               // Header
               _buildHeader(context, user, tp),
               const SizedBox(height: 16),
-              
+
               if (!healthProvider.isAuthorized && !healthProvider.isLoading)
                 _buildHealthAuthBanner(context, healthProvider, tp),
 
               const SizedBox(height: 32),
 
               // Daily Progress Cards
-              _buildProgressCards(context, appState, tp, caloriesProgress, caloriesRemaining, stepsProgress, steps),
+              _buildProgressCards(
+                context,
+                appState,
+                tp,
+                caloriesProgress,
+                caloriesRemaining,
+                stepsProgress,
+                steps,
+              ),
               const SizedBox(height: 32),
 
               // Today's Goals (Now showing progress goals)
@@ -62,7 +75,12 @@ class HomePage extends StatelessWidget {
               const SizedBox(height: 32),
 
               // My Primary Goal section
-              _buildGoalSection(context, user.goal, tp, workoutProvider.routines),
+              _buildGoalSection(
+                context,
+                user.goal,
+                tp,
+                workoutProvider.routines,
+              ),
             ],
           ),
         ),
@@ -70,7 +88,11 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, dynamic user, TranslationProvider tp) {
+  Widget _buildHeader(
+    BuildContext context,
+    dynamic user,
+    TranslationProvider tp,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -100,11 +122,16 @@ class HomePage extends StatelessWidget {
                 triggerMode: TooltipTriggerMode.tap,
                 child: Container(
                   margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: AppTheme.accentOrange.withOpacity(0.1),
+                    color: AppTheme.accentOrange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.accentOrange.withOpacity(0.3)),
+                    border: Border.all(
+                      color: AppTheme.accentOrange.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -154,7 +181,15 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressCards(BuildContext context, AppState appState, TranslationProvider tp, double caloriesProgress, double caloriesRemaining, double stepsProgress, int steps) {
+  Widget _buildProgressCards(
+    BuildContext context,
+    AppState appState,
+    TranslationProvider tp,
+    double caloriesProgress,
+    double caloriesRemaining,
+    double stepsProgress,
+    int steps,
+  ) {
     return Row(
       children: [
         Expanded(
@@ -192,7 +227,11 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildDailyGoals(BuildContext context, List<Goal> goals, TranslationProvider tp) {
+  Widget _buildDailyGoals(
+    BuildContext context,
+    List<Goal> goals,
+    TranslationProvider tp,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -220,7 +259,9 @@ class HomePage extends StatelessWidget {
               label: goal.title,
               current: goal.currentValue.toInt(),
               target: goal.targetValue.toInt(),
-              unit: goal.isBoolean ? '' : '', // Could expand unit logic if needed
+              unit: goal.isBoolean
+                  ? ''
+                  : '', // Could expand unit logic if needed
               color: AppTheme.accentGreen,
             ),
           );
@@ -229,10 +270,17 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildGoalSection(BuildContext context, String goal, TranslationProvider tp, List<WorkoutRoutine> routines) {
+  Widget _buildGoalSection(
+    BuildContext context,
+    String goal,
+    TranslationProvider tp,
+    List<WorkoutRoutine> routines,
+  ) {
     Map<String, dynamic> goalContent = _getGoalContent(goal, tp);
     List<String> tips = goalContent['tips'];
-    final translatedGoal = tp.translate(goal.toLowerCase().replaceAll(' ', '_'));
+    final translatedGoal = tp.translate(
+      goal.toLowerCase().replaceAll(' ', '_'),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,33 +291,50 @@ class HomePage extends StatelessWidget {
             Text(
               "${tp.translate('your_goal')}: $translatedGoal",
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppTheme.accentGreen,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: AppTheme.accentGreen,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const Icon(Icons.star, color: AppTheme.accentYellow),
           ],
         ),
         const SizedBox(height: 16),
-        
+
         // Tips Section
-        Text(tp.translate('expert_tips'), style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          tp.translate('expert_tips'),
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 12),
-        ...tips.map((tip) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            children: [
-              const Icon(Icons.lightbulb_outline, size: 18, color: AppTheme.accentYellow),
-              const SizedBox(width: 8),
-              Expanded(child: Text(tip, style: Theme.of(context).textTheme.bodySmall)),
-            ],
+        ...tips.map(
+          (tip) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.lightbulb_outline,
+                  size: 18,
+                  color: AppTheme.accentYellow,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    tip,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
           ),
-        )),
-        
+        ),
+
         const SizedBox(height: 24),
-        
+
         // Recommended Playlists
-        Text(tp.translate('recommended_for_you'), style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          tp.translate('recommended_for_you'),
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 12),
         SizedBox(
           height: 120,
@@ -280,9 +345,15 @@ class HomePage extends StatelessWidget {
               final routine = routines[index];
               return GestureDetector(
                 onTap: () {
-                  final workoutProvider = Provider.of<WorkoutProvider>(context, listen: false);
+                  final workoutProvider = Provider.of<WorkoutProvider>(
+                    context,
+                    listen: false,
+                  );
                   workoutProvider.setCurrentRoutine(routine);
-                  Provider.of<AppState>(context, listen: false).setPageIndex(2); // Go to Logbook
+                  Provider.of<AppState>(
+                    context,
+                    listen: false,
+                  ).setPageIndex(2); // Go to Logbook
                 },
                 child: Container(
                   width: 200,
@@ -291,7 +362,9 @@ class HomePage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppTheme.cardBackground,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.accentGreen.withOpacity(0.2)),
+                    border: Border.all(
+                      color: AppTheme.accentGreen.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,21 +374,34 @@ class HomePage extends StatelessWidget {
                         routine.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${routine.exercises.length} Exercises',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.secondaryText,
+                        ),
                       ),
                       const Spacer(),
                       Row(
                         children: [
-                          const Icon(Icons.timer_outlined, size: 14, color: AppTheme.accentGreen),
+                          const Icon(
+                            Icons.timer_outlined,
+                            size: 14,
+                            color: AppTheme.accentGreen,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             '${routine.estimatedDuration.inMinutes}m',
-                            style: const TextStyle(fontSize: 12, color: AppTheme.accentGreen),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.accentGreen,
+                            ),
                           ),
                         ],
                       ),
@@ -331,36 +417,49 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildHealthAuthBanner(BuildContext context, HealthProvider healthProvider, TranslationProvider tp) {
+  Widget _buildHealthAuthBanner(
+    BuildContext context,
+    HealthProvider healthProvider,
+    TranslationProvider tp,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.accentGreen.withOpacity(0.1),
+        color: AppTheme.accentGreen.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.accentGreen.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.accentGreen.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.health_and_safety_outlined, color: AppTheme.accentGreen),
+          const Icon(
+            Icons.health_and_safety_outlined,
+            color: AppTheme.accentGreen,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  tp.translate('connect_health_title') ?? 'Connect to Health Services',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  tp.translate('connect_health_title'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
                 Text(
-                  tp.translate('connect_health_desc') ?? 'Sync your steps and workout time automatically.',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText),
+                  tp.translate('connect_health_desc'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.secondaryText,
+                  ),
                 ),
               ],
             ),
           ),
           TextButton(
             onPressed: () => healthProvider.requestAuthorization(),
-            child: Text(tp.translate('connect') ?? 'Connect'),
+            child: Text(tp.translate('connect')),
           ),
         ],
       ),
@@ -377,10 +476,22 @@ class HomePage extends StatelessWidget {
             tp.translate('tip_veggies'),
           ],
           'exercises': [
-            {'name': tp.translate('ex_burpees_name'), 'desc': tp.translate('ex_burpees_desc'), 'icon': Icons.flash_on},
-            {'name': tp.translate('ex_jump_rope_name'), 'desc': tp.translate('ex_jump_rope_desc'), 'icon': Icons.timer},
-            {'name': tp.translate('ex_sprinting_name'), 'desc': tp.translate('ex_sprinting_desc'), 'icon': Icons.run_circle},
-          ]
+            {
+              'name': tp.translate('ex_burpees_name'),
+              'desc': tp.translate('ex_burpees_desc'),
+              'icon': Icons.flash_on,
+            },
+            {
+              'name': tp.translate('ex_jump_rope_name'),
+              'desc': tp.translate('ex_jump_rope_desc'),
+              'icon': Icons.timer,
+            },
+            {
+              'name': tp.translate('ex_sprinting_name'),
+              'desc': tp.translate('ex_sprinting_desc'),
+              'icon': Icons.run_circle,
+            },
+          ],
         };
       case 'Build Muscle':
         return {
@@ -390,10 +501,22 @@ class HomePage extends StatelessWidget {
             tp.translate('tip_protein_kg'),
           ],
           'exercises': [
-            {'name': tp.translate('ex_squats_name'), 'desc': tp.translate('ex_squats_desc'), 'icon': Icons.fitness_center},
-            {'name': tp.translate('ex_deadlifts_name'), 'desc': tp.translate('ex_deadlifts_desc'), 'icon': Icons.fitness_center},
-            {'name': tp.translate('ex_bench_press_name'), 'desc': tp.translate('ex_bench_press_desc'), 'icon': Icons.fitness_center},
-          ]
+            {
+              'name': tp.translate('ex_squats_name'),
+              'desc': tp.translate('ex_squats_desc'),
+              'icon': Icons.fitness_center,
+            },
+            {
+              'name': tp.translate('ex_deadlifts_name'),
+              'desc': tp.translate('ex_deadlifts_desc'),
+              'icon': Icons.fitness_center,
+            },
+            {
+              'name': tp.translate('ex_bench_press_name'),
+              'desc': tp.translate('ex_bench_press_desc'),
+              'icon': Icons.fitness_center,
+            },
+          ],
         };
       case 'Improve Endurance':
         return {
@@ -403,10 +526,22 @@ class HomePage extends StatelessWidget {
             tp.translate('tip_hydration'),
           ],
           'exercises': [
-            {'name': tp.translate('ex_running_name'), 'desc': tp.translate('ex_running_desc'), 'icon': Icons.directions_run},
-            {'name': tp.translate('ex_cycling_name'), 'desc': tp.translate('ex_cycling_desc'), 'icon': Icons.directions_bike},
-            {'name': tp.translate('ex_swimming_name'), 'desc': tp.translate('ex_swimming_desc'), 'icon': Icons.pool},
-          ]
+            {
+              'name': tp.translate('ex_running_name'),
+              'desc': tp.translate('ex_running_desc'),
+              'icon': Icons.directions_run,
+            },
+            {
+              'name': tp.translate('ex_cycling_name'),
+              'desc': tp.translate('ex_cycling_desc'),
+              'icon': Icons.directions_bike,
+            },
+            {
+              'name': tp.translate('ex_swimming_name'),
+              'desc': tp.translate('ex_swimming_desc'),
+              'icon': Icons.pool,
+            },
+          ],
         };
       default: // Stay Fit
         return {
@@ -416,10 +551,22 @@ class HomePage extends StatelessWidget {
             tp.translate('tip_whole_foods'),
           ],
           'exercises': [
-            {'name': tp.translate('ex_yoga_name'), 'desc': tp.translate('ex_yoga_desc'), 'icon': Icons.self_improvement},
-            {'name': tp.translate('ex_plank_name'), 'desc': tp.translate('ex_plank_desc'), 'icon': Icons.accessibility_new},
-            {'name': tp.translate('ex_hiking_name'), 'desc': tp.translate('ex_hiking_desc'), 'icon': Icons.terrain},
-          ]
+            {
+              'name': tp.translate('ex_yoga_name'),
+              'desc': tp.translate('ex_yoga_desc'),
+              'icon': Icons.self_improvement,
+            },
+            {
+              'name': tp.translate('ex_plank_name'),
+              'desc': tp.translate('ex_plank_desc'),
+              'icon': Icons.accessibility_new,
+            },
+            {
+              'name': tp.translate('ex_hiking_name'),
+              'desc': tp.translate('ex_hiking_desc'),
+              'icon': Icons.terrain,
+            },
+          ],
         };
     }
   }

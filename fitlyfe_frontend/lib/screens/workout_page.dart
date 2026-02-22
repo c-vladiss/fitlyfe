@@ -17,7 +17,6 @@ class WorkoutPage extends StatefulWidget {
 }
 
 class _WorkoutPageState extends State<WorkoutPage> {
-
   final TextEditingController _exerciseController = TextEditingController();
   final TextEditingController _setsController = TextEditingController();
   final TextEditingController _repsController = TextEditingController();
@@ -29,8 +28,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final appState = Provider.of<AppState>(context, listen: false);
-      final workoutProvider = Provider.of<WorkoutProvider>(context, listen: false);
-      
+      final workoutProvider = Provider.of<WorkoutProvider>(
+        context,
+        listen: false,
+      );
+
       // Initialize workouts based on user goal if not already customized
       if (workoutProvider.routines.length <= 1) {
         workoutProvider.initializeWorkoutsForGoal(appState.currentUser.goal);
@@ -79,7 +81,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
                       ],
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(left: 44), // Icon size + spacing
+                      padding: const EdgeInsets.only(
+                        left: 44,
+                      ), // Icon size + spacing
                       child: Text(
                         tp.translate('track_your_gains'),
                         style: Theme.of(context).textTheme.bodyMedium,
@@ -141,7 +145,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
     );
   }
 
-  Widget _buildLogSessionTab(BuildContext context, WorkoutProvider provider, TranslationProvider tp) {
+  Widget _buildLogSessionTab(
+    BuildContext context,
+    WorkoutProvider provider,
+    TranslationProvider tp,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -150,13 +158,17 @@ class _WorkoutPageState extends State<WorkoutPage> {
           // Recommended Playlists
           Row(
             children: [
-              const Icon(Icons.auto_awesome, color: AppTheme.accentYellow, size: 20),
+              const Icon(
+                Icons.auto_awesome,
+                color: AppTheme.accentYellow,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Recommended For You',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppTheme.accentYellow,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: AppTheme.accentYellow),
               ),
             ],
           ),
@@ -178,7 +190,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
                     decoration: BoxDecoration(
                       color: AppTheme.cardBackground,
                       borderRadius: BorderRadius.circular(20),
-                      border: isCurrent ? Border.all(color: AppTheme.accentGreen, width: 2) : null,
+                      border: isCurrent
+                          ? Border.all(color: AppTheme.accentGreen, width: 2)
+                          : null,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,9 +201,8 @@ class _WorkoutPageState extends State<WorkoutPage> {
                           routine.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -199,7 +212,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         const Spacer(),
                         Row(
                           children: [
-                            const Icon(Icons.timer_outlined, size: 14, color: AppTheme.secondaryText),
+                            const Icon(
+                              Icons.timer_outlined,
+                              size: 14,
+                              color: AppTheme.secondaryText,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               '${routine.estimatedDuration.inMinutes}m',
@@ -227,12 +244,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
           const SizedBox(height: 32),
 
           // Logged Exercises for Today
-          if (provider.sessions.any((s) => s.startTime.day == DateTime.now().day)) ...[
+          if (provider.sessions.any(
+            (s) => s.startTime.day == DateTime.now().day,
+          )) ...[
             const SizedBox(height: 32),
-            Text(
-              'Logged Today',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Logged Today', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             ...provider.sessions
                 .where((s) => s.startTime.day == DateTime.now().day)
@@ -254,10 +270,13 @@ class _WorkoutPageState extends State<WorkoutPage> {
             decoration: BoxDecoration(
               color: AppTheme.cardBackground,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppTheme.accentGreen.withOpacity(0.5), width: 1.5),
+              border: Border.all(
+                color: AppTheme.accentGreen.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.accentGreen.withOpacity(0.05),
+                  color: AppTheme.accentGreen.withValues(alpha: 0.05),
                   blurRadius: 10,
                   spreadRadius: 0,
                   offset: const Offset(0, 4),
@@ -271,9 +290,12 @@ class _WorkoutPageState extends State<WorkoutPage> {
                   decoration: InputDecoration(
                     labelText: tp.translate('exercise_name'),
                     hintText: tp.translate('enter_exercise_name'),
-                    prefixIcon: const Icon(Icons.fitness_center, color: AppTheme.accentGreen),
+                    prefixIcon: const Icon(
+                      Icons.fitness_center,
+                      color: AppTheme.accentGreen,
+                    ),
                     filled: true,
-                    fillColor: AppTheme.backgroundColor.withOpacity(0.3),
+                    fillColor: AppTheme.backgroundColor.withValues(alpha: 0.3),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -294,14 +316,18 @@ class _WorkoutPageState extends State<WorkoutPage> {
                           labelText: tp.translate('reps'),
                           hintText: '12',
                           filled: true,
-                          fillColor: AppTheme.backgroundColor.withOpacity(0.3),
+                          fillColor: AppTheme.backgroundColor.withValues(
+                            alpha: 0.3,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppTheme.accentGreen),
+                            borderSide: const BorderSide(
+                              color: AppTheme.accentGreen,
+                            ),
                           ),
                         ),
                         keyboardType: TextInputType.number,
@@ -315,14 +341,18 @@ class _WorkoutPageState extends State<WorkoutPage> {
                           labelText: 'Weight (kg)',
                           hintText: '60',
                           filled: true,
-                          fillColor: AppTheme.backgroundColor.withOpacity(0.3),
+                          fillColor: AppTheme.backgroundColor.withValues(
+                            alpha: 0.3,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppTheme.accentGreen),
+                            borderSide: const BorderSide(
+                              color: AppTheme.accentGreen,
+                            ),
                           ),
                         ),
                         keyboardType: TextInputType.number,
@@ -336,31 +366,43 @@ class _WorkoutPageState extends State<WorkoutPage> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      if (_exerciseController.text.isEmpty || _repsController.text.isEmpty) {
+                      if (_exerciseController.text.isEmpty ||
+                          _repsController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter exercise name and reps')),
+                          const SnackBar(
+                            content: Text(
+                              'Please enter exercise name and reps',
+                            ),
+                          ),
                         );
                         return;
                       }
 
                       // Check if there is an active session, if not start a "Quick Log" session
                       if (provider.activeSession == null) {
-                        provider.startSession(WorkoutRoutine(
-                          id: 'quick_log',
-                          name: 'Quick Log',
-                          exercises: [],
-                          estimatedDuration: Duration.zero,
-                        ));
+                        provider.startSession(
+                          WorkoutRoutine(
+                            id: 'quick_log',
+                            name: 'Quick Log',
+                            exercises: [],
+                            estimatedDuration: Duration.zero,
+                          ),
+                        );
                       }
 
                       // Add exercise if it doesn't exist in active session
-                      final existingExercise = provider.activeSession!.exercises.firstWhere(
-                        (e) => e.name.toLowerCase() == _exerciseController.text.toLowerCase(),
-                        orElse: () {
-                          provider.addExerciseToSession(_exerciseController.text);
-                          return provider.activeSession!.exercises.last;
-                        },
-                      );
+                      final existingExercise = provider.activeSession!.exercises
+                          .firstWhere(
+                            (e) =>
+                                e.name.toLowerCase() ==
+                                _exerciseController.text.toLowerCase(),
+                            orElse: () {
+                              provider.addExerciseToSession(
+                                _exerciseController.text,
+                              );
+                              return provider.activeSession!.exercises.last;
+                            },
+                          );
 
                       provider.addSetToExercise(
                         existingExercise.id,
@@ -373,7 +415,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
 
                       _repsController.clear();
                       _weightController.clear();
-                      
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Set logged successfully!'),
@@ -413,9 +455,16 @@ class _WorkoutPageState extends State<WorkoutPage> {
             children: [
               Text(
                 exercise.name,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
-              const Icon(Icons.check_circle, color: AppTheme.accentGreen, size: 20),
+              const Icon(
+                Icons.check_circle,
+                color: AppTheme.accentGreen,
+                size: 20,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -423,7 +472,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
             spacing: 8,
             children: exercise.sets.map((set) {
               return Chip(
-                label: Text('${set.reps} reps ${set.weight != null ? '• ${set.weight}kg' : ''}'),
+                label: Text(
+                  '${set.reps} reps ${set.weight != null ? '• ${set.weight}kg' : ''}',
+                ),
                 backgroundColor: AppTheme.backgroundColor,
                 labelStyle: const TextStyle(fontSize: 12),
                 padding: EdgeInsets.zero,
@@ -436,13 +487,17 @@ class _WorkoutPageState extends State<WorkoutPage> {
     );
   }
 
-  Widget _buildRoutineCard(BuildContext context, WorkoutRoutine routine, TranslationProvider tp) {
+  Widget _buildRoutineCard(
+    BuildContext context,
+    WorkoutRoutine routine,
+    TranslationProvider tp,
+  ) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.accentGreen.withOpacity(0.1)),
+        border: Border.all(color: AppTheme.accentGreen.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,7 +508,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: AppTheme.accentBlue.withOpacity(0.2),
+                  color: AppTheme.accentBlue.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
@@ -486,9 +541,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
             Text(
               routine.description!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.secondaryText,
-                    height: 1.5,
-                  ),
+                color: AppTheme.secondaryText,
+                height: 1.5,
+              ),
             ),
           ],
           const SizedBox(height: 24),
@@ -496,7 +551,10 @@ class _WorkoutPageState extends State<WorkoutPage> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                Provider.of<WorkoutProvider>(context, listen: false).startSession(routine);
+                Provider.of<WorkoutProvider>(
+                  context,
+                  listen: false,
+                ).startSession(routine);
                 Navigator.push(
                   context,
                   MaterialPageRoute(

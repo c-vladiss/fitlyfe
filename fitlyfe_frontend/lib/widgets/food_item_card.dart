@@ -23,23 +23,17 @@ class FoodItemCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppTheme.accentGreen.withOpacity(0.2),
+              color: AppTheme.accentGreen.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.restaurant,
-              color: AppTheme.accentGreen,
-            ),
+            child: const Icon(Icons.restaurant, color: AppTheme.accentGreen),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  food.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text(food.name, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 4),
                 Text(
                   'P: ${food.protein.toInt()}g • C: ${food.carbs.toInt()}g • F: ${food.fats.toInt()}g',
@@ -59,9 +53,16 @@ class FoodItemCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
                 onPressed: () {
-                  Provider.of<NutritionProvider>(context, listen: false).removeFood(food.id);
+                  Provider.of<NutritionProvider>(
+                    context,
+                    listen: false,
+                  ).removeFood(food.id);
                 },
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),

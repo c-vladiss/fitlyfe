@@ -23,7 +23,7 @@ class WelcomeScreen extends StatelessWidget {
               height: 400,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.accentGreen.withOpacity(0.05),
+                color: AppTheme.accentGreen.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -35,7 +35,7 @@ class WelcomeScreen extends StatelessWidget {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.accentBlue.withOpacity(0.03),
+                color: AppTheme.accentBlue.withValues(alpha: 0.03),
               ),
             ),
           ),
@@ -74,12 +74,16 @@ class WelcomeScreen extends StatelessWidget {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppTheme.accentGreen.withOpacity(0.3),
+                                      color: AppTheme.accentGreen.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       blurRadius: 40,
                                       spreadRadius: 10,
                                     ),
                                     BoxShadow(
-                                      color: AppTheme.accentGreen.withOpacity(0.15),
+                                      color: AppTheme.accentGreen.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       blurRadius: 80,
                                       spreadRadius: 20,
                                     ),
@@ -103,7 +107,8 @@ class WelcomeScreen extends StatelessWidget {
                         const SizedBox(height: 60),
                         Text(
                           tp.translate('welcome_title'),
-                          style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                          style: Theme.of(context).textTheme.displayLarge
+                              ?.copyWith(
                                 fontSize: 40,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: -1.0,
@@ -113,7 +118,8 @@ class WelcomeScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         Text(
                           tp.translate('welcome_subtitle'),
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
                                 color: AppTheme.secondaryText,
                                 fontSize: 18,
                                 height: 1.5,
@@ -179,9 +185,9 @@ class FitLyfeLogoPainter extends CustomPainter {
     final double h = size.height;
     final double centerX = w / 2;
     final double centerY = h / 2;
-    
+
     const double thickness = 11.0;
-    const double halfGap = 10.0; 
+    const double halfGap = 10.0;
     const double letterHeight = 44.0;
     const double letterWidth = 26.0;
 
@@ -189,56 +195,95 @@ class FitLyfeLogoPainter extends CustomPainter {
     // Stem on the outside (left), bars pointing inner (right)
     Path pathF = Path();
     // Vertical stem of F
-    pathF.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(centerX - halfGap - letterWidth, centerY - letterHeight / 2, thickness, letterHeight),
-      const Radius.circular(5),
-    ));
+    pathF.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          centerX - halfGap - letterWidth,
+          centerY - letterHeight / 2,
+          thickness,
+          letterHeight,
+        ),
+        const Radius.circular(5),
+      ),
+    );
     // Top bar of F
-    pathF.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(centerX - halfGap - letterWidth, centerY - letterHeight / 2, letterWidth, thickness),
-      const Radius.circular(5),
-    ));
+    pathF.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          centerX - halfGap - letterWidth,
+          centerY - letterHeight / 2,
+          letterWidth,
+          thickness,
+        ),
+        const Radius.circular(5),
+      ),
+    );
     // Middle bar of F
-    pathF.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(centerX - halfGap - letterWidth, centerY - thickness / 2, letterWidth * 0.7, thickness),
-      const Radius.circular(5),
-    ));
-    
+    pathF.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          centerX - halfGap - letterWidth,
+          centerY - thickness / 2,
+          letterWidth * 0.7,
+          thickness,
+        ),
+        const Radius.circular(5),
+      ),
+    );
+
     // --- Draw the 'L' (Right weight) ---
     // Mirrored: Stem on the outside (right), bar pointing inner (left)
     Path pathL = Path();
     // Vertical stem of L
-    pathL.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(centerX + halfGap + letterWidth - thickness, centerY - letterHeight / 2, thickness, letterHeight),
-      const Radius.circular(5),
-    ));
+    pathL.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          centerX + halfGap + letterWidth - thickness,
+          centerY - letterHeight / 2,
+          thickness,
+          letterHeight,
+        ),
+        const Radius.circular(5),
+      ),
+    );
     // Bottom bar of L
-    pathL.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(centerX + halfGap + letterWidth - letterWidth, centerY + letterHeight / 2 - thickness, letterWidth, thickness),
-      const Radius.circular(5),
-    ));
+    pathL.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          centerX + halfGap + letterWidth - letterWidth,
+          centerY + letterHeight / 2 - thickness,
+          letterWidth,
+          thickness,
+        ),
+        const Radius.circular(5),
+      ),
+    );
 
     // --- Draw Central Connecting Bar (Uniting them) ---
     Path connector = Path();
-    connector.addRRect(RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: Offset(centerX, centerY),
-        width: halfGap * 2 + 35, // Increased by 10px total to extend 5px more towards L (and F)
-        height: thickness,
+    connector.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(centerX, centerY),
+          width:
+              halfGap * 2 +
+              35, // Increased by 10px total to extend 5px more towards L (and F)
+          height: thickness,
+        ),
+        const Radius.circular(3),
       ),
-      const Radius.circular(3),
-    ));
+    );
 
     // Draw everything with a slight tilt for dynamism
     canvas.save();
     canvas.translate(centerX, centerY);
     canvas.rotate(-0.25); // Dynamic tilt
     canvas.translate(-centerX, -centerY);
-    
+
     canvas.drawPath(pathF, paint);
     canvas.drawPath(pathL, paint);
     canvas.drawPath(connector, paint);
-    
+
     canvas.restore();
   }
 

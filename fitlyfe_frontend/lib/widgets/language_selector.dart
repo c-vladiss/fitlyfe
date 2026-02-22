@@ -42,15 +42,16 @@ class LanguageSelector extends StatelessWidget {
     );
   }
 
-  Widget _buildListItem(BuildContext context, Locale locale, bool isSelected, LocaleProvider provider) {
+  Widget _buildListItem(
+    BuildContext context,
+    Locale locale,
+    bool isSelected,
+    LocaleProvider provider,
+  ) {
     return ListTile(
       onTap: () {
         provider.setLocale(locale);
       },
-      leading: Text(
-        L10n.getFlag(locale.languageCode),
-        style: const TextStyle(fontSize: 24),
-      ),
       title: Text(
         L10n.getNativeName(locale.languageCode),
         style: TextStyle(
@@ -61,35 +62,38 @@ class LanguageSelector extends StatelessWidget {
       trailing: isSelected
           ? Icon(Icons.check, color: Theme.of(context).primaryColor)
           : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      tileColor: isSelected ? Theme.of(context).primaryColor.withOpacity(0.05) : null,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      tileColor: isSelected
+          ? Theme.of(context).primaryColor.withValues(alpha: 0.05)
+          : null,
     );
   }
 
-  Widget _buildGridItem(BuildContext context, Locale locale, bool isSelected, LocaleProvider provider) {
+  Widget _buildGridItem(
+    BuildContext context,
+    Locale locale,
+    bool isSelected,
+    LocaleProvider provider,
+  ) {
     return InkWell(
       onTap: () => provider.setLocale(locale),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? Theme.of(context).primaryColor.withOpacity(0.1) 
+          color: isSelected
+              ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
               : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? Theme.of(context).primaryColor : Colors.grey.withOpacity(0.2),
+            color: isSelected
+                ? Theme.of(context).primaryColor
+                : Colors.grey.withValues(alpha: 0.2),
             width: isSelected ? 2 : 1,
           ),
         ),
         child: Row(
           children: [
-            Text(
-              L10n.getFlag(locale.languageCode),
-              style: const TextStyle(fontSize: 24),
-            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

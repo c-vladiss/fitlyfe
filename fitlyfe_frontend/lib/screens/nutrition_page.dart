@@ -22,15 +22,6 @@ class NutritionPage extends StatelessWidget {
 
     final caloriesConsumed = nutritionProvider.todayCalories;
     final caloriesGoal = user.dailyCalorieGoal;
-    final caloriesRemaining = (caloriesGoal - caloriesConsumed).clamp(
-      0.0,
-      caloriesGoal,
-    );
-
-    // Macro calories
-    final proteinCals = nutritionProvider.todayProtein * 4;
-    final carbsCals = nutritionProvider.todayCarbs * 4;
-    final fatsCals = nutritionProvider.todayFats * 9;
 
     // Calculate Macro Goals (30% Protein, 40% Carbs, 30% Fats)
     final proteinGoal = (caloriesGoal * 0.30) / 4;
@@ -292,11 +283,11 @@ class NutritionPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              tp.translate('healthy_recipes') ?? 'Healthy Recipes',
+              tp.translate('healthy_recipes'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             Text(
-              tp.translate('low_cal_options') ?? 'Low Calorie',
+              tp.translate('low_cal_options'),
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppTheme.accentGreen),
@@ -336,7 +327,7 @@ class NutritionPage extends StatelessWidget {
             image: NetworkImage(recipe.imageUrl),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.4),
+              Colors.black.withValues(alpha: 0.4),
               BlendMode.darken,
             ),
           ),
@@ -350,7 +341,7 @@ class NutritionPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentGreen.withOpacity(0.9),
+                  color: AppTheme.accentGreen.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -867,7 +858,7 @@ class _AddFoodDialogState extends State<AddFoodDialog> {
                           side: BorderSide(
                             color: isSelected
                                 ? AppTheme.accentGreen
-                                : AppTheme.secondaryText.withOpacity(0.3),
+                                : AppTheme.secondaryText.withValues(alpha: 0.3),
                           ),
                         ),
                       ),
@@ -877,7 +868,7 @@ class _AddFoodDialogState extends State<AddFoodDialog> {
               ),
               const SizedBox(height: 20),
 
-              Divider(color: AppTheme.secondaryText.withOpacity(0.1)),
+              Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
               const SizedBox(height: 16),
 
               if (_selectedPreset != null) ...[
@@ -1191,7 +1182,7 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
         border: Border.all(color: color, width: 2),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 8,
             spreadRadius: 1,
           ),

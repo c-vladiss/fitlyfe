@@ -244,7 +244,7 @@ class _MainScreenState extends State<MainScreen> {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: AppTheme.accentGreen.withOpacity(0.3),
+                        color: AppTheme.accentGreen.withValues(alpha: 0.3),
                         blurRadius: 10,
                         spreadRadius: 0,
                       ),

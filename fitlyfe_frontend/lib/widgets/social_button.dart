@@ -26,18 +26,13 @@ class SocialButton extends StatefulWidget {
 }
 
 class _SocialButtonState extends State<SocialButton> {
-  String? _userId;
   late final StreamSubscription<AuthState> _authSub;
 
   @override
   void initState() {
     super.initState();
 
-    _authSub = supabase.auth.onAuthStateChange.listen((data) {
-      setState(() {
-        _userId = data.session?.user.id;
-      });
-    });
+    _authSub = supabase.auth.onAuthStateChange.listen((data) {});
   }
 
   @override

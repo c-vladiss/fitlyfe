@@ -31,9 +31,7 @@ class GoalsPage extends StatelessWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tp.translate('goals')),
-      ),
+      appBar: AppBar(title: Text(tp.translate('goals'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -49,14 +47,22 @@ class GoalsPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Row(
                     children: [
-                      Icon(categoryIcons[cat], color: categoryColors[cat], size: 24),
+                      Icon(
+                        categoryIcons[cat],
+                        color: categoryColors[cat],
+                        size: 24,
+                      ),
                       const SizedBox(width: 12),
                       Text(
-                        cat == 'Daily' ? '🔥 Daily Goals' : 
-                        cat == 'Workout' ? '💪 Workout Goals' :
-                        cat == 'Health' ? '❤️ Health Goals' :
-                        cat == 'Habit' ? '📅 Habit Goals' :
-                        '🧭 Challenge Goals',
+                        cat == 'Daily'
+                            ? '🔥 Daily Goals'
+                            : cat == 'Workout'
+                            ? '💪 Workout Goals'
+                            : cat == 'Health'
+                            ? '❤️ Health Goals'
+                            : cat == 'Habit'
+                            ? '📅 Habit Goals'
+                            : '🧭 Challenge Goals',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: categoryColors[cat],
                           fontWeight: FontWeight.bold,
@@ -65,7 +71,9 @@ class GoalsPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                ...catGoals.map((goal) => _buildGoalItem(context, goal, progressProvider)),
+                ...catGoals.map(
+                  (goal) => _buildGoalItem(context, goal, progressProvider),
+                ),
               ],
             );
           }).toList(),
@@ -74,15 +82,22 @@ class GoalsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildGoalItem(BuildContext context, Goal goal, ProgressProvider provider) {
+  Widget _buildGoalItem(
+    BuildContext context,
+    Goal goal,
+    ProgressProvider provider,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: goal.isCompleted 
-            ? Border.all(color: AppTheme.accentGreen.withOpacity(0.5), width: 1)
+        border: goal.isCompleted
+            ? Border.all(
+                color: AppTheme.accentGreen.withValues(alpha: 0.5),
+                width: 1,
+              )
             : null,
       ),
       child: Row(
@@ -93,15 +108,23 @@ class GoalsPage extends StatelessWidget {
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: goal.isCompleted ? AppTheme.accentGreen : Colors.transparent,
+                color: goal.isCompleted
+                    ? AppTheme.accentGreen
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: goal.isCompleted ? AppTheme.accentGreen : AppTheme.secondaryText,
+                  color: goal.isCompleted
+                      ? AppTheme.accentGreen
+                      : AppTheme.secondaryText,
                   width: 2,
                 ),
               ),
-              child: goal.isCompleted 
-                  ? const Icon(Icons.check, size: 16, color: AppTheme.backgroundColor)
+              child: goal.isCompleted
+                  ? const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: AppTheme.backgroundColor,
+                    )
                   : null,
             ),
           ),
@@ -113,8 +136,12 @@ class GoalsPage extends StatelessWidget {
                 Text(
                   goal.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    decoration: goal.isCompleted ? TextDecoration.lineThrough : null,
-                    color: goal.isCompleted ? AppTheme.secondaryText : AppTheme.primaryText,
+                    decoration: goal.isCompleted
+                        ? TextDecoration.lineThrough
+                        : null,
+                    color: goal.isCompleted
+                        ? AppTheme.secondaryText
+                        : AppTheme.primaryText,
                   ),
                 ),
                 if (!goal.isBoolean && !goal.isCompleted) ...[
@@ -125,7 +152,9 @@ class GoalsPage extends StatelessWidget {
                       value: goal.progress,
                       backgroundColor: AppTheme.backgroundColor,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        goal.progress > 0.8 ? AppTheme.accentGreen : AppTheme.accentBlue,
+                        goal.progress > 0.8
+                            ? AppTheme.accentGreen
+                            : AppTheme.accentBlue,
                       ),
                       minHeight: 4,
                     ),
@@ -133,9 +162,11 @@ class GoalsPage extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${goal.currentValue.toInt()} / ${goal.targetValue.toInt()}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(fontSize: 10),
                   ),
-                ]
+                ],
               ],
             ),
           ),

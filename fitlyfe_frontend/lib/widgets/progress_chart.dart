@@ -38,7 +38,7 @@ class ProgressChart extends StatelessWidget {
           horizontalInterval: maxValue > 0 ? maxValue / 4 : 1,
           getDrawingHorizontalLine: (value) {
             return FlLine(
-              color: AppTheme.cardBackground.withOpacity(0.5),
+              color: AppTheme.cardBackground.withValues(alpha: 0.5),
               strokeWidth: 1,
             );
           },
@@ -95,7 +95,10 @@ class ProgressChart extends StatelessWidget {
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
-                colors: [color.withOpacity(0.35), color.withOpacity(0.01)],
+                colors: [
+                  color.withValues(alpha: 0.35),
+                  color.withValues(alpha: 0.01),
+                ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -138,7 +141,7 @@ class ProgressChart extends StatelessWidget {
               },
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (touchedSpot) =>
-                AppTheme.cardBackground.withOpacity(0.9),
+                AppTheme.cardBackground.withValues(alpha: 0.9),
             //tooltipBorderRadius:,
             fitInsideHorizontally: true,
             fitInsideVertically: true,
@@ -178,7 +181,7 @@ class ProgressChart extends StatelessWidget {
                 return spotIndexes.map((index) {
                   return TouchedSpotIndicatorData(
                     FlLine(
-                      color: color.withOpacity(0.5),
+                      color: color.withValues(alpha: 0.5),
                       strokeWidth: 2,
                       dashArray: [5, 5],
                     ),

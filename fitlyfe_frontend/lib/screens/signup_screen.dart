@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
-import 'package:fitlyfe_frontend/screens/onboarding_screen.dart';
-import 'package:fitlyfe_frontend/widgets/premium_route.dart';
 
 class SignupScreen extends StatelessWidget {
   const SignupScreen({super.key});
@@ -58,10 +56,11 @@ class SignupScreen extends StatelessWidget {
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      PremiumPageRoute(page: const OnboardingScreen()),
-                      (route) => false,
+                    // TODO: wire up Supabase email/password sign-up.
+                    // After signUp() succeeds, _onAppStateChanged in main.dart
+                    // will navigate automatically based on requiresOnboarding.
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Email sign-up coming soon')),
                     );
                   },
                   style: ElevatedButton.styleFrom(

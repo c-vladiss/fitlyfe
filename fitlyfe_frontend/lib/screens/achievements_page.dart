@@ -14,8 +14,15 @@ class AchievementsPage extends StatelessWidget {
     final tp = Provider.of<TranslationProvider>(context);
     final achievements = progressProvider.achievements;
 
-    final categories = ['Beginner', 'Streak', 'Performance', 'Progress', 'Exploration', 'Special'];
-    
+    final categories = [
+      'Beginner',
+      'Streak',
+      'Performance',
+      'Progress',
+      'Exploration',
+      'Special',
+    ];
+
     final categoryTitles = {
       'Beginner': '🌟 Beginner Milestones',
       'Streak': '🔥 Streak Achievements',
@@ -35,15 +42,15 @@ class AchievementsPage extends StatelessWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(tp.translate('achievements')),
-      ),
+      appBar: AppBar(title: Text(tp.translate('achievements'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: categories.map((cat) {
-            final catAchievements = achievements.where((a) => a.category == cat).toList();
+            final catAchievements = achievements
+                .where((a) => a.category == cat)
+                .toList();
             if (catAchievements.isEmpty) return const SizedBox.shrink();
 
             return Column(
@@ -74,7 +81,11 @@ class AchievementsPage extends StatelessWidget {
                   ),
                   itemCount: catAchievements.length,
                   itemBuilder: (context, index) {
-                    return _buildAchievementCard(context, catAchievements[index], categoryColors[cat]!);
+                    return _buildAchievementCard(
+                      context,
+                      catAchievements[index],
+                      categoryColors[cat]!,
+                    );
                   },
                 ),
                 const SizedBox(height: 16),
@@ -86,22 +97,32 @@ class AchievementsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildAchievementCard(BuildContext context, Achievement achievement, Color categoryColor) {
+  Widget _buildAchievementCard(
+    BuildContext context,
+    Achievement achievement,
+    Color categoryColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.circular(20),
         border: achievement.isUnlocked
-            ? Border.all(color: categoryColor.withOpacity(0.5), width: 1.5)
-            : Border.all(color: AppTheme.secondaryText.withOpacity(0.1), width: 1),
+            ? Border.all(
+                color: categoryColor.withValues(alpha: 0.5),
+                width: 1.5,
+              )
+            : Border.all(
+                color: AppTheme.secondaryText.withValues(alpha: 0.1),
+                width: 1,
+              ),
         boxShadow: achievement.isUnlocked
             ? [
                 BoxShadow(
-                  color: categoryColor.withOpacity(0.1),
+                  color: categoryColor.withValues(alpha: 0.1),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
-                )
+                ),
               ]
             : null,
       ),
@@ -112,9 +133,9 @@ class AchievementsPage extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: achievement.isUnlocked 
-                  ? categoryColor.withOpacity(0.15)
-                  : AppTheme.backgroundColor.withOpacity(0.5),
+              color: achievement.isUnlocked
+                  ? categoryColor.withValues(alpha: 0.15)
+                  : AppTheme.backgroundColor.withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -122,9 +143,7 @@ class AchievementsPage extends StatelessWidget {
                 opacity: achievement.isUnlocked ? 1.0 : 0.2,
                 child: Text(
                   achievement.icon,
-                  style: const TextStyle(
-                    fontSize: 30,
-                  ),
+                  style: const TextStyle(fontSize: 30),
                 ),
               ),
             ),
@@ -135,7 +154,9 @@ class AchievementsPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: achievement.isUnlocked ? AppTheme.primaryText : AppTheme.secondaryText,
+              color: achievement.isUnlocked
+                  ? AppTheme.primaryText
+                  : AppTheme.secondaryText,
             ),
           ),
           const SizedBox(height: 4),
@@ -146,7 +167,9 @@ class AchievementsPage extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontSize: 10,
-              color: achievement.isUnlocked ? AppTheme.secondaryText : AppTheme.secondaryText.withOpacity(0.5),
+              color: achievement.isUnlocked
+                  ? AppTheme.secondaryText
+                  : AppTheme.secondaryText.withValues(alpha: 0.5),
             ),
           ),
           if (achievement.isUnlocked) ...[

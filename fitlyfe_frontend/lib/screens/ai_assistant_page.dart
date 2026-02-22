@@ -22,10 +22,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
     if (!_initialized) {
       final tp = Provider.of<TranslationProvider>(context);
       _messages = [
-        ChatMessage(
-          text: tp.translate('ai_coach_intro'),
-          isUser: false,
-        ),
+        ChatMessage(text: tp.translate('ai_coach_intro'), isUser: false),
       ];
       _initialized = true;
     }
@@ -41,38 +38,26 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
     if (_messageController.text.trim().isEmpty) return;
 
     setState(() {
-      _messages.add(ChatMessage(
-        text: _messageController.text,
-        isUser: true,
-      ));
+      _messages.add(ChatMessage(text: _messageController.text, isUser: true));
       _messageController.clear();
 
       // Simulate AI response
       Future.delayed(const Duration(seconds: 1), () {
         setState(() {
-          _messages.add(ChatMessage(
-            text: "That's a great question! Here's some advice based on your goals...",
-            isUser: false,
-          ));
+          _messages.add(
+            ChatMessage(
+              text:
+                  "That's a great question! Here's some advice based on your goals...",
+              isUser: false,
+            ),
+          );
         });
       });
     });
   }
 
   void _handleTopicTap(String topicKey) {
-    final tp = Provider.of<TranslationProvider>(context, listen: false);
-    String topic = tp.translate(topicKey);
     String response = '';
-    
-    // Logic based on untranslated keys for internal consistency if needed, 
-    // but here we check the translated value or just use the key.
-    if (topicKey == 'body_type') {
-        response = "Understanding your body type helps tailor your fitness approach. There are three main types: Ectomorph (naturally thin), Mesomorph (naturally muscular), and Endomorph (naturally stocky). Each responds differently to training and nutrition.";
-    } else if (topicKey == 'consistency_tips') {
-        response = "Consistency is key to success! Here are tips: 1) Set realistic goals, 2) Create a schedule and stick to it, 3) Track your progress, 4) Find an accountability partner, 5) Celebrate small wins, 6) Don't let one bad day derail you.";
-    } else if (topicKey == 'daily_quote') {
-        response = "\"The only bad workout is the one that didn't happen.\" - Unknown\n\nRemember, every step forward counts, no matter how small. You've got this! 💪";
-    }
 
     setState(() {
       _messages.add(ChatMessage(text: response, isUser: false));
@@ -123,15 +108,24 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: _buildTopicButton(tp.translate('body_type'), 'body_type'),
+                    child: _buildTopicButton(
+                      tp.translate('body_type'),
+                      'body_type',
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildTopicButton(tp.translate('consistency_tips'), 'consistency_tips'),
+                    child: _buildTopicButton(
+                      tp.translate('consistency_tips'),
+                      'consistency_tips',
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildTopicButton(tp.translate('daily_quote'), 'daily_quote'),
+                    child: _buildTopicButton(
+                      tp.translate('daily_quote'),
+                      'daily_quote',
+                    ),
                   ),
                 ],
               ),
@@ -147,10 +141,10 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.cardBackground.withOpacity(0.4),
+                      color: AppTheme.cardBackground.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(35),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         width: 1,
                       ),
                     ),
@@ -164,7 +158,9 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
                             decoration: InputDecoration(
                               hintText: tp.translate('ask_anything'),
                               hintStyle: TextStyle(
-                                color: AppTheme.secondaryText.withOpacity(0.5),
+                                color: AppTheme.secondaryText.withValues(
+                                  alpha: 0.5,
+                                ),
                               ),
                               filled: true,
                               fillColor: Colors.transparent,
@@ -244,17 +240,14 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
         decoration: BoxDecoration(
           color: AppTheme.cardBackground,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.accentGreen,
-            width: 1,
-          ),
+          border: Border.all(color: AppTheme.accentGreen, width: 1),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.accentGreen,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.accentGreen),
         ),
       ),
     );
