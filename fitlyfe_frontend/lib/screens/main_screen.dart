@@ -22,6 +22,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   late PageController _pageController;
+  late AppState _appState;
   StreamSubscription? _completionSubscription;
   final List<String> _notificationQueue = [];
   String? _activeNotification;
@@ -37,11 +38,11 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    final appState = Provider.of<AppState>(context, listen: false);
-    _pageController = PageController(initialPage: appState.selectedPageIndex);
+    _appState = Provider.of<AppState>(context, listen: false);
+    _pageController = PageController(initialPage: _appState.selectedPageIndex);
 
     // Listen to global index changes to animate the PageView
-    appState.addListener(_onAppStateChanged);
+    _appState.addListener(_onAppStateChanged);
 
     // Initialize health data
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -81,11 +82,11 @@ class _MainScreenState extends State<MainScreen> {
 
       // Trigger "First Step" achievement on first login/entry
       Future.delayed(const Duration(seconds: 2), () {
-        appState.checkStreak();
+        _appState.checkStreak();
         progressProvider.unlockAchievement('b1');
 
         // Trigger streak achievements
-        if (appState.currentUser.streakCount >= 3) {
+        if (_appState.currentUser.streakCount >= 3) {
           progressProvider.unlockAchievement('b6');
         }
       });
@@ -113,11 +114,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onAppStateChanged() {
-    final appState = Provider.of<AppState>(context, listen: false);
     if (_pageController.hasClients &&
-        _pageController.page?.round() != appState.selectedPageIndex) {
+        _pageController.page?.round() != _appState.selectedPageIndex) {
       _pageController.animateToPage(
-        appState.selectedPageIndex,
+        _appState.selectedPageIndex,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOutCubic,
       );
@@ -127,11 +127,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     _completionSubscription?.cancel();
-    // We need to remove the listener when disposing
-    Provider.of<AppState>(
-      context,
-      listen: false,
-    ).removeListener(_onAppStateChanged);
+    _appState.removeListener(_onAppStateChanged);
     _pageController.dispose();
     super.dispose();
   }

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app_links/app_links.dart';
-
 import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
 import 'package:fitlyfe_frontend/providers/workout_provider.dart';
@@ -18,7 +17,6 @@ import 'package:fitlyfe_frontend/screens/main_screen.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/auth/google_auth_strategy.dart';
 import 'package:fitlyfe_frontend/widgets/premium_route.dart';
-
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 
@@ -114,7 +112,8 @@ class _FitLyfeAppState extends State<FitLyfeApp> {
         if (!mounted) return;
         final ctx = _navigatorKey.currentContext;
         if (ctx == null) return;
-        final errorMessage = appState.syncErrorMessage ??
+        final errorMessage =
+            appState.syncErrorMessage ??
             'Could not connect to the server. Please try again.';
         showDialog<void>(
           context: ctx,
@@ -197,9 +196,7 @@ class _FitLyfeAppState extends State<FitLyfeApp> {
     if (!appState.isAuthenticated) return const WelcomeScreen();
     // Already authenticated on cold start — show a loading spinner while
     // _syncWithBackend() runs; _onAppStateChanged will navigate when done.
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 
   @override

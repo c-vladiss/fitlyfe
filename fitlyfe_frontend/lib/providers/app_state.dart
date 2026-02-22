@@ -87,19 +87,33 @@ class AppState extends ChangeNotifier {
     try {
       final result = await _graphQLService.syncUser();
       _requiresOnboarding = result.requiresOnboarding;
+
+      // Determine display name: prefer profile displayName, then OAuth name
+      final oauthName = [result.firstName, result.lastName]
+          .where((s) => s != null && s.isNotEmpty)
+          .join(' ')
+          .trim();
+      final displayName = (result.profileDisplayName?.isNotEmpty == true)
+          ? result.profileDisplayName!
+          : (oauthName.isNotEmpty ? oauthName : _currentUser.name);
+
+      // Calculate age from date-of-birth if available
+      int age = _currentUser.age;
+      if (result.profileDateOfBirth != null) {
+        final dob = DateTime.tryParse(result.profileDateOfBirth!);
+        if (dob != null) {
+          age = _calculateAge(dob);
+        }
+      }
+
       _currentUser = _currentUser.copyWith(
         id: result.id,
         email: result.email,
-        name: [result.firstName, result.lastName]
-            .where((s) => s != null && s.isNotEmpty)
-            .join(' ')
-            .trim()
-            .isEmpty
-            ? _currentUser.name
-            : [result.firstName, result.lastName]
-                .where((s) => s != null && s.isNotEmpty)
-                .join(' ')
-                .trim(),
+        name: displayName,
+        height: result.profileHeightCm ?? _currentUser.height,
+        weight: result.profileWeightKg ?? _currentUser.weight,
+        age: age,
+        goal: result.profileGoal ?? _currentUser.goal,
       );
     } on BackendNetworkException {
       _syncFailed = true;
@@ -140,6 +154,9 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Updates the local user profile and fire-and-forgets a sync to the backend.
+  /// Pass [dateOfBirth] (from onboarding) to store the precise DOB; when only
+  /// [age] is provided (profile page edits), an approximate DOB is derived.
   void updateUserProfile({
     String? name,
     String? email,
@@ -147,6 +164,7 @@ class AppState extends ChangeNotifier {
     double? height,
     int? age,
     String? goal,
+    DateTime? dateOfBirth,
   }) {
     _currentUser = _currentUser.copyWith(
       name: name,
@@ -157,6 +175,55 @@ class AppState extends ChangeNotifier {
       goal: goal,
     );
     notifyListeners();
+    _syncProfileToBackend(
+      name: name,
+      height: height,
+      weight: weight,
+      age: age,
+      goal: goal,
+      dateOfBirth: dateOfBirth,
+    );
+  }
+
+  Future<void> _syncProfileToBackend({
+    String? name,
+    double? height,
+    double? weight,
+    int? age,
+    String? goal,
+    DateTime? dateOfBirth,
+  }) async {
+    // Skip sync if there's nothing to update or no session
+    if (_session == null) return;
+    if (name == null &&
+        height == null &&
+        weight == null &&
+        age == null &&
+        goal == null &&
+        dateOfBirth == null) {
+      return;
+    }
+
+    try {
+      // Use precise DOB if provided; otherwise derive approximate DOB from age
+      DateTime? dob = dateOfBirth;
+      if (dob == null && age != null) {
+        dob = DateTime(DateTime.now().year - age, 1, 1);
+      }
+      final dobStr = dob != null
+          ? '${dob.year}-${dob.month.toString().padLeft(2, '0')}-${dob.day.toString().padLeft(2, '0')}'
+          : null;
+
+      await _graphQLService.updateUserProfile(
+        displayName: name,
+        heightCm: height,
+        weightKg: weight,
+        dateOfBirth: dobStr,
+        goal: goal,
+      );
+    } catch (e) {
+      debugPrint('Profile backend sync failed: $e');
+    }
   }
 
   void checkStreak() {
@@ -194,5 +261,15 @@ class AppState extends ChangeNotifier {
     _session = null;
     _requiresOnboarding = false;
     notifyListeners();
+  }
+
+  int _calculateAge(DateTime dob) {
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month ||
+        (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+    return age;
   }
 }

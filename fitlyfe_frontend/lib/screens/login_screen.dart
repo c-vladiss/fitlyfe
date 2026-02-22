@@ -5,9 +5,96 @@ import 'package:flutter/material.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/screens/signup_screen.dart';
 import 'package:fitlyfe_frontend/widgets/premium_route.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  bool _passwordVisible = false;
+  bool _isLoading = false;
+  String? _emailError;
+  String? _passwordError;
+
+  static final _emailRegex =
+      RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  String? _validateEmail(String value) {
+    if (value.isEmpty) return 'Email is required';
+    if (!_emailRegex.hasMatch(value)) return 'Enter a valid email address';
+    return null;
+  }
+
+  String? _validatePassword(String value) {
+    if (value.isEmpty) return 'Password is required';
+    if (value.length < 10) return 'Must be at least 10 characters';
+    if (!value.contains(RegExp(r'[A-Z]'))) return 'Must contain an uppercase letter';
+    if (!value.contains(RegExp(r'[a-z]'))) return 'Must contain a lowercase letter';
+    if (!value.contains(RegExp(r'[0-9]'))) return 'Must contain a number';
+    if (!value.contains(RegExp(r'[^a-zA-Z0-9]'))) return 'Must contain a special character';
+    return null;
+  }
+
+  bool _validate() {
+    final emailErr = _validateEmail(_emailController.text.trim());
+    final passwordErr = _validatePassword(_passwordController.text);
+    setState(() {
+      _emailError = emailErr;
+      _passwordError = passwordErr;
+    });
+    return emailErr == null && passwordErr == null;
+  }
+
+  Future<void> _signIn() async {
+    if (!_validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      // Navigation is handled automatically by AppState.onAuthStateChange
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      _showError(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      _showError('An unexpected error occurred. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppTheme.cardBackground,
+        title: const Text('Sign-In Failed'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +119,7 @@ class LoginScreen extends StatelessWidget {
               ),
             );
           },
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -43,13 +130,26 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Email Field
-                _buildTextField('Email', Icons.email_outlined),
-                const SizedBox(height: 20),
                 _buildTextField(
-                  'Password',
-                  Icons.lock_outline,
+                  hint: 'Email',
+                  icon: Icons.email_outlined,
+                  controller: _emailController,
+                  error: _emailError,
+                  keyboardType: TextInputType.emailAddress,
+                  onChanged: (_) => setState(() => _emailError = null),
+                ),
+                const SizedBox(height: 20),
+
+                _buildTextField(
+                  hint: 'Password',
+                  icon: Icons.lock_outline,
+                  controller: _passwordController,
+                  error: _passwordError,
                   isPassword: true,
+                  passwordVisible: _passwordVisible,
+                  onTogglePasswordVisibility: () =>
+                      setState(() => _passwordVisible = !_passwordVisible),
+                  onChanged: (_) => setState(() => _passwordError = null),
                 ),
 
                 const SizedBox(height: 12),
@@ -66,32 +166,29 @@ class LoginScreen extends StatelessWidget {
 
                 const SizedBox(height: 32),
                 ElevatedButton(
-                  onPressed: () {
-                    // TODO: wire up Supabase email/password sign-in.
-                    // After signIn() succeeds, _onAppStateChanged in main.dart
-                    // will navigate automatically based on requiresOnboarding.
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Email sign-in coming soon')),
-                    );
-                  },
+                  onPressed: _isLoading ? null : _signIn,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 60),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  child: const Text(
-                    'SIGN IN',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text(
+                          'SIGN IN',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                 ),
 
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    const Expanded(
-                      child: Divider(color: AppTheme.cardBackground),
-                    ),
+                    const Expanded(child: Divider(color: AppTheme.cardBackground)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
@@ -101,9 +198,7 @@ class LoginScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const Expanded(
-                      child: Divider(color: AppTheme.cardBackground),
-                    ),
+                    const Expanded(child: Divider(color: AppTheme.cardBackground)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -115,7 +210,6 @@ class LoginScreen extends StatelessWidget {
                   textColor: Colors.white,
                   authStrategy: GoogleAuthStrategy(),
                 ),
-
                 const SizedBox(height: 24),
 
                 SocialButton(
@@ -126,12 +220,12 @@ class LoginScreen extends StatelessWidget {
                   authStrategy: AppleAuthStrategy(),
                 ),
 
-                const Spacer(),
+                const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      'Don\'t have an account?',
+                      "Don't have an account?",
                       style: TextStyle(color: AppTheme.secondaryText),
                     ),
                     TextButton(
@@ -159,28 +253,65 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(
-    String hint,
-    IconData icon, {
+  Widget _buildTextField({
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    String? error,
     bool isPassword = false,
+    bool passwordVisible = false,
+    VoidCallback? onTogglePasswordVisibility,
+    TextInputType? keyboardType,
+    ValueChanged<String>? onChanged,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: TextField(
-        obscureText: isPassword,
-        decoration: InputDecoration(
-          hintText: hint,
-          prefixIcon: Icon(icon, color: AppTheme.accentGreen),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 18,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.cardBackground,
+            borderRadius: BorderRadius.circular(20),
+            border: error != null
+                ? Border.all(color: AppTheme.accentRed, width: 1.5)
+                : null,
+          ),
+          child: TextField(
+            controller: controller,
+            obscureText: isPassword && !passwordVisible,
+            keyboardType: keyboardType,
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: hint,
+              prefixIcon: Icon(icon, color: AppTheme.accentGreen),
+              suffixIcon: isPassword
+                  ? IconButton(
+                      icon: Icon(
+                        passwordVisible
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: AppTheme.secondaryText,
+                        size: 20,
+                      ),
+                      onPressed: onTogglePasswordVisibility,
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
+              ),
+            ),
           ),
         ),
-      ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 16, top: 6),
+            child: Text(
+              error,
+              style: const TextStyle(color: AppTheme.accentRed, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -66,7 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       age--;
     }
 
-    // Update user profile with onboarding data
+    // Update user profile with onboarding data (also syncs to backend)
     appState.updateUserProfile(
       name: _nameController.text.isEmpty
           ? 'Fitness User'
@@ -75,6 +75,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       weight: _weight,
       age: age,
       goal: _selectedGoal,
+      dateOfBirth: _selectedDate,
     );
 
     // Initialize workouts based on the selected goal immediately

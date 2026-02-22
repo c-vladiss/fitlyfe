@@ -580,10 +580,10 @@ class ProfilePage extends StatelessWidget {
     TranslationProvider tp,
   ) {
     final goals = [
-      'Lose Weight',
-      'Build Muscle',
-      'Improve Endurance',
-      'Stay Fit',
+      'lose_weight',
+      'build_muscle',
+      'improve_endurance',
+      'stay_fit',
     ];
 
     showModalBottomSheet(
@@ -619,7 +619,9 @@ class ProfilePage extends StatelessWidget {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${tp.translate('goal_updated_to')} $goal'),
+                      content: Text(
+                        '${tp.translate('goal_updated_to')} ${tp.translate(goal)}',
+                      ),
                       backgroundColor: AppTheme.accentGreen,
                     ),
                   );

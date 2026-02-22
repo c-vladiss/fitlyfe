@@ -62,6 +62,13 @@ class GraphQLService {
           firstName
           lastName
           requiresOnboarding
+          profile {
+            heightCm
+            weightKg
+            dateOfBirth
+            goal
+            displayName
+          }
         }
       }
     ''';
@@ -88,12 +95,19 @@ class GraphQLService {
       throw BackendSyncException('syncUser mutation returned null data');
     }
 
+    final profileData = data['profile'] as Map<String, dynamic>?;
+
     return SyncUserResult(
       id: data['id'] as String,
       email: data['email'] as String,
       firstName: data['firstName'] as String?,
       lastName: data['lastName'] as String?,
       requiresOnboarding: data['requiresOnboarding'] as bool,
+      profileHeightCm: profileData?['heightCm'] as double?,
+      profileWeightKg: profileData?['weightKg'] as double?,
+      profileDateOfBirth: profileData?['dateOfBirth'] as String?,
+      profileGoal: profileData?['goal'] as String?,
+      profileDisplayName: profileData?['displayName'] as String?,
     );
   }
 
@@ -116,6 +130,47 @@ class GraphQLService {
 
     return result.data?['completeOnboarding'] as bool? ?? false;
   }
+
+  /// Saves or updates the user's fitness profile on the backend.
+  /// All fields are optional — only non-null values are sent.
+  Future<void> updateUserProfile({
+    String? displayName,
+    double? heightCm,
+    double? weightKg,
+    String? dateOfBirth,
+    String? goal,
+  }) async {
+    const String mutation = r'''
+      mutation UpdateUserProfile($input: UpdateUserProfileInput!) {
+        updateUserProfile(input: $input) {
+          heightCm
+          weightKg
+          dateOfBirth
+          goal
+          displayName
+        }
+      }
+    ''';
+
+    final input = <String, dynamic>{};
+    if (displayName != null) input['displayName'] = displayName;
+    if (heightCm != null) input['heightCm'] = heightCm;
+    if (weightKg != null) input['weightKg'] = weightKg;
+    if (dateOfBirth != null) input['dateOfBirth'] = dateOfBirth;
+    if (goal != null) input['goal'] = goal;
+
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(mutation),
+        variables: {'input': input},
+      ),
+    );
+
+    if (result.hasException) {
+      debugPrint('GraphQL updateUserProfile error: ${result.exception}');
+      throw BackendSyncException(result.exception.toString());
+    }
+  }
 }
 
 class SyncUserResult {
@@ -124,6 +179,12 @@ class SyncUserResult {
   final String? firstName;
   final String? lastName;
   final bool requiresOnboarding;
+  // Profile fields — null if the user hasn't completed onboarding yet
+  final double? profileHeightCm;
+  final double? profileWeightKg;
+  final String? profileDateOfBirth;
+  final String? profileGoal;
+  final String? profileDisplayName;
 
   const SyncUserResult({
     required this.id,
@@ -131,5 +192,10 @@ class SyncUserResult {
     this.firstName,
     this.lastName,
     required this.requiresOnboarding,
+    this.profileHeightCm,
+    this.profileWeightKg,
+    this.profileDateOfBirth,
+    this.profileGoal,
+    this.profileDisplayName,
   });
 }

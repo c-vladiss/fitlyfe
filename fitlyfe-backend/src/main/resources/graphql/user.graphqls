@@ -8,3 +8,23 @@ type User {
     firstName: String
     lastName: String
 }
+
+type UserProfile {
+    heightCm: Float
+    weightKg: Float
+    dateOfBirth: String
+    goal: String
+    displayName: String
+}
+
+input UpdateUserProfileInput {
+    displayName: String
+    heightCm: Float
+    weightKg: Float
+    dateOfBirth: String
+    goal: String
+}
+
+extend type Mutation {
+    updateUserProfile(input: UpdateUserProfileInput!): UserProfile!
+}
