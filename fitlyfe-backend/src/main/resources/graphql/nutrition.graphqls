@@ -1,3 +1,7 @@
+# ===========================================================================
+# Nutrition tracking — daily nutrition logs, meals, and meal entries
+# ===========================================================================
+
 extend type Query {
     dailyNutrition(date: String!): DailyNutrition
 }
@@ -17,25 +21,15 @@ type Meal {
     id: ID!
     mealType: String
     loggedAt: String
-    foods: [MealFood!]!
+    entries: [MealEntry!]!
 }
 
-type MealFood {
+type MealEntry {
     id: ID!
-    food: Food!
+    foodEntry: FoodEntry!
     quantityG: Float
     calories: Int
     proteinG: Float
     carbsG: Float
     fatG: Float
-}
-
-type Food {
-    id: ID!
-    name: String!
-    brand: String
-    caloriesPer100g: Int
-    proteinPer100g: Float
-    carbsPer100g: Float
-    fatPer100g: Float
 }

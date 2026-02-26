@@ -1,21 +1,22 @@
 package com.fitlyfe.fitlyfe_backend.api.nutrition.entity
 
+import com.fitlyfe.fitlyfe_backend.api.catalog.entity.FoodEntryEntity
 import jakarta.persistence.*
 import java.util.UUID
 
 @Entity
-@Table(name = "meal_foods")
-data class MealFoodEntity(
+@Table(name = "meal_entries")
+data class MealEntryEntity(
     @Id
     val id: UUID = UUID.randomUUID(),
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "meal_id")
+    @JoinColumn(name = "meal_id", nullable = false)
     val meal: MealEntity,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "food_id")
-    val food: FoodEntity,
+    @JoinColumn(name = "food_entry_id", nullable = false)
+    val foodEntry: FoodEntryEntity,
 
     @Column(name = "quantity_g")
     val quantityG: Double? = null,

@@ -43,3 +43,8 @@ out/
 ### Logs & temp ###
 *.log
 temp_imports.txt
+
+### Raw seed data (too large for git — use scripts/ to regenerate) ###
+src/main/resources/data/seeds/foodb_2020_04_07_csv/
+src/main/resources/data/seeds/FoodData_Central_*.json
+src/main/resources/data/seeds/.DS_Store

@@ -39,3 +39,8 @@ server:
 
 supabase:
   url: ${SUPABASE_URL}
+
+usda:
+  api-key: ${USDA_API_KEY}
+  # Minimum local results before falling back to the USDA API for a text search
+  search-fallback-threshold: 5
