@@ -3,14 +3,14 @@ name: Frontend CI (Flutter)
 on:
   push:
     paths:
-      - 'fitlyfe_frontend/**'
+      - "fitlyfe_frontend/**"
     branches:
-      - '**'
+      - "**"
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     paths:
-      - 'fitlyfe_frontend/**'
+      - "fitlyfe_frontend/**"
 
 jobs:
   frontend:
@@ -23,7 +23,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.20.0'
+          flutter-version: "3.41.1"
           channel: stable
 
       - name: Install dependencies

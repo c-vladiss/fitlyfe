@@ -11,6 +11,17 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9999/auth/v1/.well-known/jwks.json
 
 supabase:
   url: http://localhost:9999
+
+usda:
+  api-key: test-key
+  search-fallback-threshold: 5

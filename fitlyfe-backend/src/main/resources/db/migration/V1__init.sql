@@ -1,5 +1,5 @@
 CREATE TABLE users (
-    id UUID PRIMARY KEY,
+    user_id UUID PRIMARY KEY,
     keycloak_id UUID NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL,
     status VARCHAR(50),

@@ -2,7 +2,7 @@ package com.fitlyfe.fitlyfe_backend.api.nutrition.controller
 
 import com.fitlyfe.fitlyfe_backend.api.nutrition.entity.DailyNutritionEntity
 import com.fitlyfe.fitlyfe_backend.api.nutrition.entity.MealEntity
-import com.fitlyfe.fitlyfe_backend.api.nutrition.entity.MealFoodEntity
+import com.fitlyfe.fitlyfe_backend.api.nutrition.entity.MealEntryEntity
 import com.fitlyfe.fitlyfe_backend.api.nutrition.service.NutritionService
 import com.fitlyfe.fitlyfe_backend.api.user.entity.UserEntity
 import com.fitlyfe.fitlyfe_backend.api.user.service.UserService
@@ -33,9 +33,9 @@ class NutritionGraphQLController(
         return nutritionService.getMealsForDailyNutrition(dailyNutrition)
     }
 
-    @SchemaMapping(typeName = "Meal", field = "foods")
-    fun getFoods(meal: MealEntity): List<MealFoodEntity> {
-        return nutritionService.getFoodsForMeal(meal)
+    @SchemaMapping(typeName = "Meal", field = "entries")
+    fun getEntries(meal: MealEntity): List<MealEntryEntity> {
+        return nutritionService.getEntriesForMeal(meal)
     }
 
     private fun getUserFromJwt(jwt: Jwt): UserEntity {
