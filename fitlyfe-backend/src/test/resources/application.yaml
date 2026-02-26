@@ -24,3 +24,4 @@ supabase:
 
 usda:
   api-key: test-key
+  search-fallback-threshold: 5
