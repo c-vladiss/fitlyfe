@@ -4,6 +4,26 @@
 
 extend type Query {
     dailyNutrition(date: String!): DailyNutrition
+    weeklyNutrition(startDate: String!, endDate: String!): [DailyNutrition!]!
+    userMealTypes: [UserMealType!]!
+}
+
+extend type Mutation {
+    # -- Template management (settings screen) --
+    createUserMealTypes(types: [MealTypeInput!]!): [UserMealType!]!
+    addUserMealType(name: String!, sortOrder: Int!): UserMealType!
+    updateUserMealType(id: ID!, name: String, sortOrder: Int): UserMealType!
+    deleteUserMealType(id: ID!): Boolean!
+
+    # -- Per-day meal management --
+    addMealToDay(date: String!, mealType: String!): Meal!
+    renameMealOnDay(mealId: ID!, newName: String!): Meal!
+    deleteMealFromDay(mealId: ID!): Boolean!
+
+    # -- Meal entry CRUD --
+    addMealEntry(date: String!, mealType: String!, foodEntryId: ID!, quantityG: Float!): MealEntry!
+    updateMealEntry(entryId: ID!, quantityG: Float, foodEntryId: ID): MealEntry!
+    deleteMealEntry(entryId: ID!): Boolean!
 }
 
 type DailyNutrition {
@@ -32,4 +52,16 @@ type MealEntry {
     proteinG: Float
     carbsG: Float
     fatG: Float
+}
+
+type UserMealType {
+    id: ID!
+    name: String!
+    sortOrder: Int!
+    isDefault: Boolean!
+}
+
+input MealTypeInput {
+    name: String!
+    sortOrder: Int!
 }
