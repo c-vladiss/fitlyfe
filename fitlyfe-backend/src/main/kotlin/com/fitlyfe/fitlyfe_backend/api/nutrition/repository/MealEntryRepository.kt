@@ -7,4 +7,6 @@ import java.util.UUID
 
 interface MealEntryRepository : JpaRepository<MealEntryEntity, UUID> {
     fun findByMeal(meal: MealEntity): List<MealEntryEntity>
+    fun findByMealIn(meals: List<MealEntity>): List<MealEntryEntity>
+    fun deleteByMeal(meal: MealEntity)
 }

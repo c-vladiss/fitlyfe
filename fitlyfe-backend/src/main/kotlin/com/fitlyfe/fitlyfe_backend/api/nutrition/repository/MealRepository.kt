@@ -7,4 +7,7 @@ import java.util.UUID
 
 interface MealRepository : JpaRepository<MealEntity, UUID> {
     fun findByDailyNutritionOrderByLoggedAtAsc(dailyNutrition: DailyNutritionEntity): List<MealEntity>
+    fun findByDailyNutritionOrderBySortOrderAsc(dailyNutrition: DailyNutritionEntity): List<MealEntity>
+    fun findByDailyNutritionAndMealType(dailyNutrition: DailyNutritionEntity, mealType: String): MealEntity?
+    fun findByDailyNutrition(dailyNutrition: DailyNutritionEntity): List<MealEntity>
 }

@@ -8,4 +8,5 @@ import java.util.UUID
 
 interface DailyNutritionRepository : JpaRepository<DailyNutritionEntity, UUID> {
     fun findByUserAndDate(user: UserEntity, date: LocalDate): DailyNutritionEntity?
+    fun findByUserAndDateBetween(user: UserEntity, startDate: LocalDate, endDate: LocalDate): List<DailyNutritionEntity>
 }

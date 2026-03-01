@@ -1,5 +1,6 @@
 extend type Query {
     me: User
+    userGoals: UserGoals!
 }
 
 type User {
@@ -27,4 +28,19 @@ input UpdateUserProfileInput {
 
 extend type Mutation {
     updateUserProfile(input: UpdateUserProfileInput!): UserProfile!
+    updateUserGoals(
+        dailyCalories: Int,
+        dailyProteinG: Float,
+        dailyCarbsG: Float,
+        dailyFatG: Float,
+        goalWeightKg: Float
+    ): UserGoals!
+}
+
+type UserGoals {
+    dailyCalories: Int!
+    dailyProteinG: Float!
+    dailyCarbsG: Float!
+    dailyFatG: Float!
+    goalWeightKg: Float
 }
