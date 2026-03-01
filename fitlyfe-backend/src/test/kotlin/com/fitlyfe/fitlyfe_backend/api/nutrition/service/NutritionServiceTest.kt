@@ -13,6 +13,8 @@ import com.fitlyfe.fitlyfe_backend.api.nutrition.repository.MealEntryRepository
 import com.fitlyfe.fitlyfe_backend.api.nutrition.repository.MealRepository
 import com.fitlyfe.fitlyfe_backend.api.nutrition.repository.UserMealTypeRepository
 import com.fitlyfe.fitlyfe_backend.api.user.entity.UserEntity
+import com.fitlyfe.fitlyfe_backend.api.user.entity.UserGoalsEntity
+import com.fitlyfe.fitlyfe_backend.api.user.service.UserService
 import jakarta.persistence.EntityNotFoundException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -35,12 +37,22 @@ class NutritionServiceTest {
     @Mock private lateinit var mealEntryRepository: MealEntryRepository
     @Mock private lateinit var userMealTypeRepository: UserMealTypeRepository
     @Mock private lateinit var foodEntryRepository: FoodEntryRepository
+    @Mock private lateinit var userService: UserService
 
     private lateinit var service: NutritionService
 
     private val user = UserEntity(
         supabaseId = UUID.randomUUID(),
         email = "test@example.com"
+    )
+
+    private val defaultGoals = UserGoalsEntity(
+        userId = user.id,
+        user = user,
+        dailyCalories = 2000,
+        dailyProteinG = 150.0,
+        dailyCarbsG = 250.0,
+        dailyFatG = 65.0
     )
 
     @BeforeEach
@@ -50,7 +62,8 @@ class NutritionServiceTest {
             mealRepository,
             mealEntryRepository,
             userMealTypeRepository,
-            foodEntryRepository
+            foodEntryRepository,
+            userService
         )
     }
 
@@ -198,27 +211,38 @@ class NutritionServiceTest {
     inner class AddMealEntry {
 
         @Test
-        fun `creates daily nutrition and meal if not exist then adds entry`() {
+        fun `creates daily nutrition and meal if not exist then adds entry and returns response`() {
             val date = LocalDate.of(2026, 1, 15)
             val food = foodEntry()
             val daily = dailyNutrition(date)
             val mealObj = meal(daily, "Lunch")
+            val updatedDaily = daily.copy(totalCalories = 330, proteinG = 62.0, carbsG = 0.0, fatG = 7.2)
 
             whenever(foodEntryRepository.findById(food.id)).thenReturn(Optional.of(food))
-            whenever(dailyNutritionRepository.findByUserAndDate(user, date)).thenReturn(null)
+            whenever(dailyNutritionRepository.findByUserAndDate(user, date))
+                .thenReturn(null)
+                .thenReturn(updatedDaily) // second call for building response
             doReturn(daily).whenever(dailyNutritionRepository).save(any<DailyNutritionEntity>())
             whenever(mealRepository.findByDailyNutritionAndMealType(daily, "Lunch")).thenReturn(null)
             doReturn(mealObj).whenever(mealRepository).save(any<MealEntity>())
             doAnswer { it.arguments[0] }.whenever(mealEntryRepository).save(any<MealEntryEntity>())
             whenever(mealRepository.findByDailyNutrition(daily)).thenReturn(listOf(mealObj))
             whenever(mealEntryRepository.findByMealIn(listOf(mealObj))).thenReturn(emptyList())
+            whenever(mealEntryRepository.findByMeal(mealObj)).thenReturn(emptyList())
 
             val result = service.addMealEntry(user, date, "Lunch", food.id, 200.0)
 
-            assertThat(result.quantityG).isEqualTo(200.0)
-            assertThat(result.calories).isEqualTo(330) // 165 * 2
-            assertThat(result.proteinG).isEqualTo(62.0) // 31 * 2
-            verify(dailyNutritionRepository, times(2)).save(any<DailyNutritionEntity>()) // create + recompute
+            // Verify entry values
+            assertThat(result.entry.quantityG).isEqualTo(200.0)
+            assertThat(result.entry.calories).isEqualTo(330) // 165 * 2
+            assertThat(result.entry.proteinG).isEqualTo(62.0) // 31 * 2
+
+            // Verify meal summary
+            assertThat(result.mealSummary.mealType).isEqualTo("Lunch")
+
+            // Verify daily summary
+            assertThat(result.dailySummary.totalCaloriesConsumed).isEqualTo(330)
+            assertThat(result.dailySummary.proteinGConsumed).isEqualTo(62.0)
         }
 
         @Test
@@ -234,6 +258,7 @@ class NutritionServiceTest {
             doAnswer { it.arguments[0] }.whenever(mealEntryRepository).save(any<MealEntryEntity>())
             whenever(mealRepository.findByDailyNutrition(daily)).thenReturn(listOf(mealObj))
             whenever(mealEntryRepository.findByMealIn(listOf(mealObj))).thenReturn(emptyList())
+            whenever(mealEntryRepository.findByMeal(mealObj)).thenReturn(emptyList())
             doReturn(daily).whenever(dailyNutritionRepository).save(any<DailyNutritionEntity>())
 
             service.addMealEntry(user, date, "Lunch", food.id, 100.0)
@@ -364,8 +389,8 @@ class NutritionServiceTest {
     inner class DailyMealManagement {
 
         @Test
-        fun `addMealToDay creates meal for given date`() {
-            val date = LocalDate.of(2026, 1, 15) // not today
+        fun `addMealToDay creates meal for given date without modifying template`() {
+            val date = LocalDate.of(2026, 1, 15)
             val daily = dailyNutrition(date)
 
             whenever(dailyNutritionRepository.findByUserAndDate(user, date)).thenReturn(daily)
@@ -374,12 +399,27 @@ class NutritionServiceTest {
             val result = service.addMealToDay(user, date, "Snack")
 
             assertThat(result.mealType).isEqualTo("Snack")
-            // Not today, so template should NOT be updated
+            // Template should NEVER be modified when adding per-day meals
             verifyNoInteractions(userMealTypeRepository)
         }
 
         @Test
-        fun `renameMealOnDay renames meal on past day without template change`() {
+        fun `addMealToDay on today does not modify template`() {
+            val today = LocalDate.now()
+            val daily = dailyNutrition(today)
+
+            whenever(dailyNutritionRepository.findByUserAndDate(user, today)).thenReturn(daily)
+            doAnswer { it.arguments[0] }.whenever(mealRepository).save(any<MealEntity>())
+
+            val result = service.addMealToDay(user, today, "Snack")
+
+            assertThat(result.mealType).isEqualTo("Snack")
+            // Even for today, template should NOT be modified
+            verifyNoInteractions(userMealTypeRepository)
+        }
+
+        @Test
+        fun `renameMealOnDay renames meal without modifying template`() {
             val date = LocalDate.of(2026, 1, 15)
             val daily = dailyNutrition(date)
             val mealObj = meal(daily, "Lunch")
@@ -390,6 +430,40 @@ class NutritionServiceTest {
             val result = service.renameMealOnDay(user, mealObj.id, "Brunch")
 
             assertThat(result.mealType).isEqualTo("Brunch")
+            verifyNoInteractions(userMealTypeRepository)
+        }
+
+        @Test
+        fun `renameMealOnDay on today does not modify template`() {
+            val today = LocalDate.now()
+            val daily = dailyNutrition(today)
+            val mealObj = meal(daily, "Lunch")
+
+            whenever(mealRepository.findById(mealObj.id)).thenReturn(Optional.of(mealObj))
+            doAnswer { it.arguments[0] }.whenever(mealRepository).save(any<MealEntity>())
+
+            val result = service.renameMealOnDay(user, mealObj.id, "Brunch")
+
+            assertThat(result.mealType).isEqualTo("Brunch")
+            // Even for today, template should NOT be modified
+            verifyNoInteractions(userMealTypeRepository)
+        }
+
+        @Test
+        fun `deleteMealFromDay on today does not modify template`() {
+            val today = LocalDate.now()
+            val daily = dailyNutrition(today)
+            val mealObj = meal(daily, "Lunch")
+
+            whenever(mealRepository.findById(mealObj.id)).thenReturn(Optional.of(mealObj))
+            whenever(mealRepository.findByDailyNutrition(daily)).thenReturn(emptyList())
+            doReturn(daily).whenever(dailyNutritionRepository).save(any<DailyNutritionEntity>())
+
+            service.deleteMealFromDay(user, mealObj.id)
+
+            verify(mealEntryRepository).deleteByMeal(mealObj)
+            verify(mealRepository).delete(mealObj)
+            // Even for today, template should NOT be modified
             verifyNoInteractions(userMealTypeRepository)
         }
     }
@@ -447,6 +521,177 @@ class NutritionServiceTest {
 
             assertThat(result.calories).isEqualTo(0)
             assertThat(result.proteinG).isEqualTo(0.0)
+        }
+    }
+
+    // ── Goals & Meal Template ───────────────────────────────────────────
+
+    @Nested
+    inner class GoalsAndMealTemplate {
+
+        private val defaultMealTypes = listOf(
+            UserMealTypeEntity(user = user, name = "Breakfast", sortOrder = 0),
+            UserMealTypeEntity(user = user, name = "Lunch", sortOrder = 1),
+            UserMealTypeEntity(user = user, name = "Dinner", sortOrder = 2),
+            UserMealTypeEntity(user = user, name = "Snack", sortOrder = 3)
+        )
+
+        private fun mealWithSortOrder(daily: DailyNutritionEntity, mealType: String, sortOrder: Int) = MealEntity(
+            dailyNutrition = daily,
+            mealType = mealType,
+            sortOrder = sortOrder,
+            loggedAt = LocalDateTime.now()
+        )
+
+        @Test
+        fun `getDailyGoals returns user goals`() {
+            whenever(userService.getOrCreateGoals(user)).thenReturn(defaultGoals)
+
+            val result = service.getDailyGoals(user)
+
+            assertThat(result.totalCalories).isEqualTo(2000)
+            assertThat(result.totalProteinG).isEqualTo(150.0)
+            assertThat(result.totalCarbsG).isEqualTo(250.0)
+            assertThat(result.totalFatG).isEqualTo(65.0)
+        }
+
+        @Test
+        fun `getDailyNutrition initializes day from default template when pristine`() {
+            val date = LocalDate.of(2026, 3, 1)
+            val savedDaily = dailyNutrition(date)
+
+            whenever(dailyNutritionRepository.findByUserAndDate(user, date)).thenReturn(null)
+            doReturn(savedDaily).whenever(dailyNutritionRepository).save(any<DailyNutritionEntity>())
+            whenever(userMealTypeRepository.findByUserOrderBySortOrderAsc(user)).thenReturn(defaultMealTypes)
+            doAnswer { it.arguments[0] }.whenever(mealRepository).save(any<MealEntity>())
+
+            val result = service.getDailyNutrition(user, date)
+
+            assertThat(result).isEqualTo(savedDaily)
+            // Verify 4 meals were created from default template
+            verify(mealRepository, times(4)).save(any<MealEntity>())
+        }
+
+        @Test
+        fun `getDailyNutrition returns existing day without modification`() {
+            val date = LocalDate.of(2026, 3, 1)
+            val existingDaily = dailyNutrition(date)
+
+            whenever(dailyNutritionRepository.findByUserAndDate(user, date)).thenReturn(existingDaily)
+
+            val result = service.getDailyNutrition(user, date)
+
+            assertThat(result).isEqualTo(existingDaily)
+            // No new meals should be created
+            verify(mealRepository, never()).save(any<MealEntity>())
+        }
+
+        @Test
+        fun `getMealTemplate returns actual meals with goal distribution`() {
+            val date = LocalDate.of(2026, 3, 1)
+            val daily = dailyNutrition(date)
+            val meals = listOf(
+                mealWithSortOrder(daily, "Breakfast", 0),
+                mealWithSortOrder(daily, "Lunch", 1),
+                mealWithSortOrder(daily, "Dinner", 2),
+                mealWithSortOrder(daily, "Snack", 3)
+            )
+
+            whenever(userService.getOrCreateGoals(user)).thenReturn(defaultGoals)
+            whenever(mealRepository.findByDailyNutritionOrderBySortOrderAsc(daily)).thenReturn(meals)
+            meals.forEach { whenever(mealEntryRepository.findByMeal(it)).thenReturn(emptyList()) }
+
+            val result = service.getMealTemplate(user, daily)
+
+            // Returns all 4 meal slots
+            assertThat(result).hasSize(4)
+            assertThat(result.map { it.name }).containsExactly("Breakfast", "Lunch", "Dinner", "Snack")
+
+            // Goals distributed equally: 2000/4 = 500 calories per meal
+            assertThat(result[0].targetCalories).isEqualTo(500)
+            assertThat(result[0].targetProteinG).isEqualTo(37.5) // 150/4
+            assertThat(result[0].targetCarbsG).isEqualTo(62.5) // 250/4
+            assertThat(result[0].targetFatG).isEqualTo(16.25) // 65/4
+
+            // No entries, so consumed values should be null
+            assertThat(result[0].consumedCalories).isNull()
+            assertThat(result[0].entries).isEmpty()
+        }
+
+        @Test
+        fun `getMealTemplate calculates consumed totals from entries`() {
+            val date = LocalDate.of(2026, 3, 1)
+            val daily = dailyNutrition(date)
+            val breakfastMeal = mealWithSortOrder(daily, "Breakfast", 0)
+            val lunchMeal = mealWithSortOrder(daily, "Lunch", 1)
+            val food = foodEntry()
+            val breakfastEntries = listOf(mealEntry(breakfastMeal, food, 100.0))
+
+            whenever(userService.getOrCreateGoals(user)).thenReturn(defaultGoals)
+            whenever(mealRepository.findByDailyNutritionOrderBySortOrderAsc(daily))
+                .thenReturn(listOf(breakfastMeal, lunchMeal))
+            whenever(mealEntryRepository.findByMeal(breakfastMeal)).thenReturn(breakfastEntries)
+            whenever(mealEntryRepository.findByMeal(lunchMeal)).thenReturn(emptyList())
+
+            val result = service.getMealTemplate(user, daily)
+
+            assertThat(result).hasSize(2)
+
+            // Goals distributed across 2 meals: 2000/2 = 1000 per meal
+            assertThat(result[0].targetCalories).isEqualTo(1000)
+
+            // Breakfast has logged entries
+            assertThat(result[0].consumedCalories).isEqualTo(165)
+            assertThat(result[0].entries).hasSize(1)
+            assertThat(result[0].entries[0].name).isEqualTo("Chicken Breast")
+
+            // Lunch is empty
+            assertThat(result[1].consumedCalories).isNull()
+            assertThat(result[1].entries).isEmpty()
+        }
+
+        @Test
+        fun `getMealTemplate shows only remaining meals after deletion`() {
+            val date = LocalDate.of(2026, 3, 1)
+            val daily = dailyNutrition(date)
+            // Lunch was deleted, only 3 meals remain
+            val meals = listOf(
+                mealWithSortOrder(daily, "Breakfast", 0),
+                mealWithSortOrder(daily, "Dinner", 2),
+                mealWithSortOrder(daily, "Snack", 3)
+            )
+
+            whenever(userService.getOrCreateGoals(user)).thenReturn(defaultGoals)
+            whenever(mealRepository.findByDailyNutritionOrderBySortOrderAsc(daily)).thenReturn(meals)
+            meals.forEach { whenever(mealEntryRepository.findByMeal(it)).thenReturn(emptyList()) }
+
+            val result = service.getMealTemplate(user, daily)
+
+            // Returns only 3 meals (Lunch was deleted)
+            assertThat(result).hasSize(3)
+            assertThat(result.map { it.name }).containsExactly("Breakfast", "Dinner", "Snack")
+
+            // Goals distributed across 3 meals: 2000/3 = 666 per meal
+            assertThat(result[0].targetCalories).isEqualTo(666)
+        }
+
+        @Test
+        fun `computeMealSummary sums all entries in meal`() {
+            val daily = dailyNutrition()
+            val mealObj = meal(daily, "Lunch")
+            val food = foodEntry()
+            val entries = listOf(
+                mealEntry(mealObj, food, 100.0),
+                mealEntry(mealObj, food, 100.0)
+            )
+
+            whenever(mealEntryRepository.findByMeal(mealObj)).thenReturn(entries)
+
+            val result = service.computeMealSummary(mealObj)
+
+            assertThat(result.mealType).isEqualTo("Lunch")
+            assertThat(result.totalCalories).isEqualTo(330) // 165 * 2
+            assertThat(result.proteinG).isEqualTo(62.0) // 31 * 2
         }
     }
 }

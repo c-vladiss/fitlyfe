@@ -1,7 +1,9 @@
 package com.fitlyfe.fitlyfe_backend.api.user.service
 
 import com.fitlyfe.fitlyfe_backend.api.user.entity.UserEntity
+import com.fitlyfe.fitlyfe_backend.api.user.entity.UserGoalsEntity
 import com.fitlyfe.fitlyfe_backend.api.user.entity.UserProfileEntity
+import com.fitlyfe.fitlyfe_backend.api.user.repository.UserGoalsRepository
 import com.fitlyfe.fitlyfe_backend.api.user.repository.UserProfileRepository
 import com.fitlyfe.fitlyfe_backend.api.user.repository.UserRepository
 import jakarta.persistence.EntityNotFoundException
@@ -13,6 +15,7 @@ import java.util.UUID
 class UserService(
     private val userRepository: UserRepository,
     private val userProfileRepository: UserProfileRepository,
+    private val userGoalsRepository: UserGoalsRepository,
 ) {
     /**
      * Upserts a user by their Supabase ID.
@@ -111,5 +114,37 @@ class UserService(
 
     fun getUserById(userId: String): UserEntity? {
         return userRepository.findById(UUID.fromString(userId)).orElse(null)
+    }
+
+    // ── User Goals ──────────────────────────────────────────────────────
+
+    fun getOrCreateGoals(user: UserEntity): UserGoalsEntity {
+        val existing = userGoalsRepository.findByUserId(user.id)
+        if (existing != null) return existing
+
+        val newGoals = UserGoalsEntity(
+            userId = user.id,
+            user = user
+        )
+        return userGoalsRepository.save(newGoals)
+    }
+
+    fun updateGoals(
+        user: UserEntity,
+        dailyCalories: Int? = null,
+        dailyProteinG: Double? = null,
+        dailyCarbsG: Double? = null,
+        dailyFatG: Double? = null,
+        goalWeightKg: Double? = null
+    ): UserGoalsEntity {
+        val existing = getOrCreateGoals(user)
+        val updated = existing.copyForUpdate(
+            dailyCalories = dailyCalories ?: existing.dailyCalories,
+            dailyProteinG = dailyProteinG ?: existing.dailyProteinG,
+            dailyCarbsG = dailyCarbsG ?: existing.dailyCarbsG,
+            dailyFatG = dailyFatG ?: existing.dailyFatG,
+            goalWeightKg = goalWeightKg ?: existing.goalWeightKg
+        )
+        return userGoalsRepository.save(updated)
     }
 }

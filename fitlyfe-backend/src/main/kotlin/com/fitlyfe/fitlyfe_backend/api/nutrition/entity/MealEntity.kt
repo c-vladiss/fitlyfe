@@ -17,6 +17,9 @@ data class MealEntity(
     @Column(name = "meal_type")
     val mealType: String? = null,
 
+    @Column(name = "sort_order")
+    val sortOrder: Int = 0,
+
     @Column(name = "logged_at")
     val loggedAt: LocalDateTime? = null,
 

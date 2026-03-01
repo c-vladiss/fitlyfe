@@ -1,5 +1,8 @@
 package com.fitlyfe.fitlyfe_backend.api.nutrition.controller
 
+import com.fitlyfe.fitlyfe_backend.api.nutrition.dto.AddMealEntryResponse
+import com.fitlyfe.fitlyfe_backend.api.nutrition.dto.DailyGoals
+import com.fitlyfe.fitlyfe_backend.api.nutrition.dto.MealSlot
 import com.fitlyfe.fitlyfe_backend.api.nutrition.dto.MealTypeInput
 import com.fitlyfe.fitlyfe_backend.api.nutrition.entity.DailyNutritionEntity
 import com.fitlyfe.fitlyfe_backend.api.nutrition.entity.MealEntity
@@ -29,7 +32,7 @@ class NutritionGraphQLController(
 
     @QueryMapping
     @PreAuthorize("isAuthenticated()")
-    fun dailyNutrition(@Argument date: String, @AuthenticationPrincipal jwt: Jwt): DailyNutritionEntity? {
+    fun dailyNutrition(@Argument date: String, @AuthenticationPrincipal jwt: Jwt): DailyNutritionEntity {
         val user = getUserFromJwt(jwt)
         return nutritionService.getDailyNutrition(user, LocalDate.parse(date))
     }
@@ -57,6 +60,16 @@ class NutritionGraphQLController(
     @SchemaMapping(typeName = "DailyNutrition", field = "meals")
     fun getMeals(dailyNutrition: DailyNutritionEntity): List<MealEntity> {
         return nutritionService.getMealsForDailyNutrition(dailyNutrition)
+    }
+
+    @SchemaMapping(typeName = "DailyNutrition", field = "goals")
+    fun getGoals(dailyNutrition: DailyNutritionEntity): DailyGoals {
+        return nutritionService.getDailyGoals(dailyNutrition.user)
+    }
+
+    @SchemaMapping(typeName = "DailyNutrition", field = "mealTemplate")
+    fun getMealTemplate(dailyNutrition: DailyNutritionEntity): List<MealSlot> {
+        return nutritionService.getMealTemplate(dailyNutrition.user, dailyNutrition)
     }
 
     @SchemaMapping(typeName = "Meal", field = "entries")
@@ -155,7 +168,7 @@ class NutritionGraphQLController(
         @Argument foodEntryId: String,
         @Argument quantityG: Double,
         @AuthenticationPrincipal jwt: Jwt
-    ): MealEntryEntity {
+    ): AddMealEntryResponse {
         val user = getUserFromJwt(jwt)
         return nutritionService.addMealEntry(
             user, LocalDate.parse(date), mealType, UUID.fromString(foodEntryId), quantityG
