@@ -21,7 +21,6 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  late PageController _pageController;
   late AppState _appState;
   StreamSubscription? _completionSubscription;
   final List<String> _notificationQueue = [];
@@ -39,10 +38,6 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _appState = Provider.of<AppState>(context, listen: false);
-    _pageController = PageController(initialPage: _appState.selectedPageIndex);
-
-    // Listen to global index changes to animate the PageView
-    _appState.addListener(_onAppStateChanged);
 
     // Initialize health data
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -113,22 +108,9 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  void _onAppStateChanged() {
-    if (_pageController.hasClients &&
-        _pageController.page?.round() != _appState.selectedPageIndex) {
-      _pageController.animateToPage(
-        _appState.selectedPageIndex,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOutCubic,
-      );
-    }
-  }
-
   @override
   void dispose() {
     _completionSubscription?.cancel();
-    _appState.removeListener(_onAppStateChanged);
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -141,11 +123,8 @@ class _MainScreenState extends State<MainScreen> {
       extendBody: true,
       body: Stack(
         children: [
-          PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              appState.setPageIndex(index);
-            },
+          IndexedStack(
+            index: appState.selectedPageIndex,
             children: _pages,
           ),
           if (_activeNotification != null)

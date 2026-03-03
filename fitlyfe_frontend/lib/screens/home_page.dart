@@ -25,10 +25,11 @@ class HomePage extends StatelessWidget {
     final user = appState.currentUser;
 
     final caloriesConsumed = nutritionProvider.todayCalories;
-    final caloriesRemaining = (user.dailyCalorieGoal - caloriesConsumed).clamp(
-      0.0,
-      user.dailyCalorieGoal,
-    );
+    final isCaloriesOver = caloriesConsumed > user.dailyCalorieGoal;
+    final caloriesValueToShow = isCaloriesOver 
+        ? (caloriesConsumed - user.dailyCalorieGoal).toInt() 
+        : (user.dailyCalorieGoal - caloriesConsumed).toInt();
+    final caloriesLabel = isCaloriesOver ? 'Over Goal' : tp.translate('remaining');
     final caloriesProgress = caloriesConsumed / user.dailyCalorieGoal;
 
     final healthProvider = Provider.of<HealthProvider>(context);
@@ -64,7 +65,9 @@ class HomePage extends StatelessWidget {
                 appState,
                 tp,
                 caloriesProgress,
-                caloriesRemaining,
+                caloriesValueToShow,
+                isCaloriesOver,
+                caloriesLabel,
                 stepsProgress,
                 steps,
               ),
@@ -186,7 +189,9 @@ class HomePage extends StatelessWidget {
     AppState appState,
     TranslationProvider tp,
     double caloriesProgress,
-    double caloriesRemaining,
+    int caloriesValue,
+    bool isCaloriesOver,
+    String caloriesLabel,
     double stepsProgress,
     int steps,
   ) {
@@ -195,11 +200,12 @@ class HomePage extends StatelessWidget {
         Expanded(
           child: CircularProgressCard(
             value: caloriesProgress,
-            mainValue: caloriesRemaining.toInt(),
-            label: tp.translate('remaining'),
+            mainValue: caloriesValue,
+            label: caloriesLabel,
             unit: 'KCAL',
             color: AppTheme.accentGreen,
             icon: Icons.local_fire_department,
+            isWarning: isCaloriesOver,
             onTap: () {
               appState.setProgressMetricIndex(0); // Set to calories
               appState.setPageIndex(1); // Navigate to nutrition page

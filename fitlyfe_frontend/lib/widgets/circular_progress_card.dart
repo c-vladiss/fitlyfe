@@ -11,6 +11,7 @@ class CircularProgressCard extends StatelessWidget {
   final IconData? icon;
   final String? actionText;
   final VoidCallback? onTap;
+  final bool isWarning;
 
   const CircularProgressCard({
     super.key,
@@ -22,6 +23,7 @@ class CircularProgressCard extends StatelessWidget {
     this.icon,
     this.actionText,
     this.onTap,
+    this.isWarning = false,
   });
 
   @override
@@ -87,7 +89,10 @@ class CircularProgressCard extends StatelessWidget {
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (icon != null) ...[
+                          if (isWarning) ...[
+                            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+                            const SizedBox(height: 4),
+                          ] else if (icon != null) ...[
                             Icon(icon, color: AppTheme.primaryText, size: 20),
                             const SizedBox(height: 4),
                           ],
@@ -97,16 +102,16 @@ class CircularProgressCard extends StatelessWidget {
                                 : mainValue.toString(),
                             style: Theme.of(context).textTheme.displayLarge
                                 ?.copyWith(
-                                  color: AppTheme.primaryText,
+                                  color: isWarning ? Colors.redAccent : AppTheme.primaryText,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: mainValue >= 1000 ? 28 : 32,
+                                  fontSize: mainValue >= 1000 ? 28 : (isWarning ? 26 : 32),
                                 ),
                           ),
                           Text(
                             label,
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
-                                  color: AppTheme.secondaryText,
+                                  color: isWarning ? Colors.redAccent : AppTheme.secondaryText,
                                   fontWeight: FontWeight.w500,
                                 ),
                           ),

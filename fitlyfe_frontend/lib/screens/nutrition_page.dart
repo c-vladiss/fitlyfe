@@ -7,8 +7,10 @@ import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/widgets/food_item_card.dart';
 import 'package:fitlyfe_frontend/widgets/micronutrient_card.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
-import 'package:fitlyfe_frontend/models/recipe.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:fitlyfe_frontend/screens/nutrition_details_page.dart';
+import 'package:fitlyfe_frontend/screens/meal_settings_page.dart';
+import 'package:intl/intl.dart';
 
 class NutritionPage extends StatelessWidget {
   const NutritionPage({super.key});
@@ -52,72 +54,155 @@ class NutritionPage extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
-              // Calorie & Macro Progress
-              _CalorieMacroChart(
-                caloriesGoal: caloriesGoal,
-                caloriesConsumed: caloriesConsumed,
-                protein: nutritionProvider.todayProtein,
-                carbs: nutritionProvider.todayCarbs,
-                fats: nutritionProvider.todayFats,
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: RichText(
-                  text: TextSpan(
+              // Date Selector
+              Builder(
+                builder: (context) {
+                  final now = DateTime.now();
+                  final selectedDate = nutritionProvider.selectedDate;
+                  final isToday = selectedDate.year == now.year &&
+                      selectedDate.month == now.month &&
+                      selectedDate.day == now.day;
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      TextSpan(
-                        text: '${caloriesConsumed.toInt()}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppTheme.accentGreen,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios, color: AppTheme.primaryText, size: 20),
+                        onPressed: () {
+                          nutritionProvider.setSelectedDate(
+                            selectedDate.subtract(const Duration(days: 1))
+                          );
+                        },
                       ),
-                      TextSpan(
-                        text: ' / ${user.dailyCalorieGoal.toInt()} KCAL',
-                        style: Theme.of(context).textTheme.titleLarge,
+                      Text(
+                        DateFormat('EEEE, MMM d, yyyy').format(selectedDate),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_forward_ios, 
+                          color: isToday 
+                              ? AppTheme.secondaryText.withValues(alpha: 0.5) 
+                              : AppTheme.primaryText, 
+                          size: 20,
+                        ),
+                        onPressed: isToday 
+                            ? null 
+                            : () {
+                                nutritionProvider.setSelectedDate(
+                                  selectedDate.add(const Duration(days: 1))
+                                );
+                              },
                       ),
                     ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Summary Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Summary',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NutritionDetailsPage(
+                            caloriesConsumed: caloriesConsumed,
+                            caloriesGoal: caloriesGoal,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Details',
+                      style: TextStyle(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBackground,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
+                ),
+                child: Column(
+                  children: [
+                    // Top Row: Remaining Chart
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Center: Remaining Chart
+                        _CalorieMacroChart(
+                          caloriesGoal: caloriesGoal,
+                          caloriesConsumed: caloriesConsumed,
+                          protein: nutritionProvider.todayProtein,
+                          carbs: nutritionProvider.todayCarbs,
+                          fats: nutritionProvider.todayFats,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    // Bottom Row: Macros
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildMiniMacroBar('Carbs', nutritionProvider.todayCarbs, carbsGoal, AppTheme.accentGreen),
+                        _buildMiniMacroBar('Protein', nutritionProvider.todayProtein, proteinGoal, AppTheme.accentBlue),
+                        _buildMiniMacroBar('Fat', nutritionProvider.todayFats, fatsGoal, AppTheme.accentOrange),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 32),
 
-              // Macronutrients
+              // Nutrition Categories Section
+                  Text(
+                    'Nutrition',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: AppTheme.cardBackground,
                   borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
                 ),
                 child: Column(
                   children: [
-                    Text(
-                      tp.translate('macronutrients'),
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildMacroRow(
-                      context,
-                      tp.translate('protein'),
-                      nutritionProvider.todayProtein,
-                      proteinGoal,
-                      AppTheme.accentBlue,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMacroRow(
-                      context,
-                      tp.translate('carbs'),
-                      nutritionProvider.todayCarbs,
-                      carbsGoal,
-                      AppTheme.accentGreen,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMacroRow(
-                      context,
-                      tp.translate('fats'),
-                      nutritionProvider.todayFats,
-                      fatsGoal,
-                      AppTheme.accentOrange,
+                    _buildReorderableMeals(context, nutritionProvider, tp),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MealSettingsPage(
+                                date: nutritionProvider.selectedDate,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add_circle_outline, color: AppTheme.accentGreen),
+                        label: const Text(
+                          'Add Meal Category',
+                          style: TextStyle(color: AppTheme.accentGreen, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -156,50 +241,6 @@ class NutritionPage extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
-              // Healthy Recipes Section
-              _buildRecipesSection(context, tp),
-              const SizedBox(height: 32),
-
-              // Today's Log
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    tp.translate('today_log'),
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _showAddFoodDialog(context, tp),
-                    icon: const Icon(Icons.add, size: 20),
-                    label: Text(tp.translate('add_food')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.accentGreen,
-                      foregroundColor: AppTheme.backgroundColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ...nutritionProvider.todayFoods.map(
-                (food) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: FoodItemCard(food: food),
-                ),
-              ),
-              if (nutritionProvider.todayFoods.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(40),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardBackground,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: Text(
-                      tp.translate('no_food_logged'),
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -207,438 +248,127 @@ class NutritionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMacroRow(
-    BuildContext context,
-    String label,
-    double value,
-    double goal,
-    Color color,
-  ) {
-    final progress = (value / goal).clamp(0.0, 1.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+  Widget _buildReorderableMeals(BuildContext context, NutritionProvider provider, TranslationProvider tp) {
+    final meals = provider.getMealsForDate(provider.selectedDate);
+
+    // Calculate adjusted goals based on calorie carry-over overages
+    final adjustedGoals = <int>[];
+    int carryOver = 0;
+    
+    for (int i = 0; i < meals.length; i++) {
+      final meal = meals[i];
+      final foods = provider.todayFoods.where((f) => f.mealType == meal.name).toList();
+      final double consumed = foods.fold(0.0, (sum, food) => sum + food.calories);
+      
+      int currentGoal = meal.goalCals - carryOver;
+      if (currentGoal < 0) {
+        carryOver = -currentGoal;
+        currentGoal = 0;
+      } else {
+        carryOver = 0;
+      }
+      adjustedGoals.add(currentGoal);
+      
+      if (consumed > currentGoal) {
+        carryOver += (consumed - currentGoal).toInt();
+      }
+    }
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        canvasColor: Colors.transparent,
+      ),
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: meals.length,
+        onReorder: (oldIndex, newIndex) {
+          int adjustedNewIndex = newIndex;
+          if (oldIndex < newIndex) {
+            adjustedNewIndex -= 1;
+          }
+          provider.reorderMeals(provider.selectedDate, oldIndex, adjustedNewIndex);
+        },
+        itemBuilder: (context, index) {
+          final meal = meals[index];
+          final adjustedGoal = adjustedGoals[index];
+          return Container(
+            key: ValueKey(meal.name),
+            child: Column(
               children: [
-                Container(
-                  width: 4,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                _MealSection(
+                  index: index,
+                  mealName: meal.name,
+                  emojiStr: meal.emoji,
+                  goalCals: adjustedGoal,
+                  foods: provider.todayFoods.where((f) => f.mealType == meal.name).toList(),
+                  onAddTap: () => _showAddFoodDialog(context, tp, mealType: meal.name),
+                  onMealTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MealSettingsPage(
+                          date: provider.selectedDate,
+                          currentMeal: meal,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
+                if (index < meals.length - 1)
+                  Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),
               ],
             ),
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '${value.toInt()}g',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  TextSpan(
-                    text: ' / ${goal.toInt()}g',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.secondaryText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            backgroundColor: AppTheme.backgroundColor, // Background track color
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecipesSection(BuildContext context, TranslationProvider tp) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              tp.translate('healthy_recipes'),
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(
-              tp.translate('low_cal_options'),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppTheme.accentGreen),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 220,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: premadeRecipes.length,
-            itemBuilder: (context, index) {
-              final recipe = premadeRecipes[index];
-              return _buildRecipeCard(context, recipe, tp);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecipeCard(
-    BuildContext context,
-    Recipe recipe,
-    TranslationProvider tp,
-  ) {
-    return GestureDetector(
-      onTap: () => _showRecipeDetails(context, recipe, tp),
-      child: Container(
-        width: 180,
-        margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          color: AppTheme.cardBackground,
-          borderRadius: BorderRadius.circular(24),
-          image: DecorationImage(
-            image: NetworkImage(recipe.imageUrl),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              Colors.black.withValues(alpha: 0.4),
-              BlendMode.darken,
-            ),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentGreen.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${recipe.calories.toInt()} kcal',
-                  style: const TextStyle(
-                    color: AppTheme.backgroundColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                recipe.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.egg_outlined,
-                    size: 12,
-                    color: AppTheme.accentBlue,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${recipe.protein.toInt()}g',
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.opacity,
-                    size: 12,
-                    color: AppTheme.accentOrange,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${recipe.fats.toInt()}g',
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  void _showRecipeDetails(
-    BuildContext context,
-    Recipe recipe,
-    TranslationProvider tp,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: AppTheme.backgroundColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Hero Image
-              Stack(
-                children: [
-                  Container(
-                    height: 250,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(32),
-                      ),
-                      image: DecorationImage(
-                        image: NetworkImage(recipe.imageUrl),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 20,
-                    right: 20,
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black45,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                recipe.name,
-                                style: Theme.of(context).textTheme.displaySmall,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                recipe.category,
-                                style: TextStyle(
-                                  color: AppTheme.accentGreen,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.cardBackground,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                '${recipe.calories.toInt()}',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.accentGreen,
-                                ),
-                              ),
-                              const Text(
-                                'KCAL',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: AppTheme.secondaryText,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Macro Breakdown
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _recipeMacroStat(
-                          'Protein',
-                          '${recipe.protein.toInt()}g',
-                          AppTheme.accentBlue,
-                        ),
-                        _recipeMacroStat(
-                          'Carbs',
-                          '${recipe.carbs.toInt()}g',
-                          AppTheme.accentGreen,
-                        ),
-                        _recipeMacroStat(
-                          'Fats',
-                          '${recipe.fats.toInt()}g',
-                          AppTheme.accentOrange,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 32),
-                    Text(
-                      'Ingredients',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    ...recipe.ingredients.map(
-                      (ing) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle_outline,
-                              size: 18,
-                              color: AppTheme.accentGreen,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              ing,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-                    Text(
-                      'Instructions',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    ...recipe.instructions.asMap().entries.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${entry.key + 1}.',
-                              style: const TextStyle(
-                                color: AppTheme.accentGreen,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                entry.value,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Provider.of<NutritionProvider>(
-                            context,
-                            listen: false,
-                          ).addFood(recipe.toFood());
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Added ${recipe.name} to your log!',
-                              ),
-                              backgroundColor: AppTheme.accentGreen,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add to Daily Log'),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _recipeMacroStat(String label, String value, Color color) {
+  Widget _buildMiniMacroBar(String label, double value, double goal, Color color) {
+    final progress = goal > 0 ? (value / goal).clamp(0.0, 1.0) : 0.0;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+          style: const TextStyle(color: AppTheme.primaryText, fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: 90,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 12,
+              backgroundColor: AppTheme.secondaryText.withValues(alpha: 0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '${value.toInt()} / ${goal.toInt()} g',
+          style: const TextStyle(color: AppTheme.primaryText, fontSize: 12, fontWeight: FontWeight.bold),
         ),
       ],
     );
   }
 
-  void _showAddFoodDialog(BuildContext context, TranslationProvider tp) {
-    showDialog(context: context, builder: (context) => const AddFoodDialog());
+  void _showAddFoodDialog(BuildContext context, TranslationProvider tp, {String? mealType}) {
+    showDialog(context: context, builder: (context) => AddFoodDialog(mealType: mealType));
   }
 
   void _showAddVitaminDialog(BuildContext context, TranslationProvider tp) {
@@ -717,7 +447,8 @@ class NutritionPage extends StatelessWidget {
 }
 
 class AddFoodDialog extends StatefulWidget {
-  const AddFoodDialog({super.key});
+  final String? mealType;
+  const AddFoodDialog({super.key, this.mealType});
 
   @override
   State<AddFoodDialog> createState() => _AddFoodDialogState();
@@ -773,6 +504,42 @@ class _AddFoodDialogState extends State<AddFoodDialog> {
         .toStringAsFixed(1);
     _carbsController.text = (_selectedPreset!.carbs * ratio).toStringAsFixed(1);
     _fatsController.text = (_selectedPreset!.fats * ratio).toStringAsFixed(1);
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    String? hintText,
+    TextInputType? keyboardType,
+    bool readOnly = false,
+    ValueChanged<String>? onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      readOnly: readOnly,
+      style: TextStyle(color: readOnly ? AppTheme.secondaryText : AppTheme.primaryText),
+      keyboardType: keyboardType,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        filled: true,
+        fillColor: AppTheme.backgroundColor.withValues(alpha: 0.3),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: readOnly ? AppTheme.secondaryText.withValues(alpha: 0.3) : AppTheme.accentGreen),
+        ),
+      ),
+    );
   }
 
   @override
@@ -875,11 +642,9 @@ class _AddFoodDialogState extends State<AddFoodDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: _buildTextField(
                         controller: _weightController,
-                        decoration: InputDecoration(
-                          labelText: tp.translate('weight_g'),
-                        ),
+                        labelText: tp.translate('weight_g'),
                         keyboardType: TextInputType.number,
                         onChanged: (_) => _updateFieldsFromWeight(),
                       ),
@@ -909,58 +674,47 @@ class _AddFoodDialogState extends State<AddFoodDialog> {
                 const SizedBox(height: 16),
               ],
 
-              TextField(
+              _buildTextField(
                 controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: tp.translate('food_name'),
-                  hintText: tp.translate('food_name_hint'),
-                ),
+                labelText: tp.translate('food_name'),
+                hintText: tp.translate('food_name_hint'),
+                readOnly: _selectedPreset != null,
               ),
               const SizedBox(height: 16),
-              TextField(
+              _buildTextField(
                 controller: _caloriesController,
-                decoration: InputDecoration(
-                  labelText: tp.translate('calories'),
-                  hintText: '350',
-                ),
+                labelText: tp.translate('calories'),
+                hintText: '350',
                 keyboardType: TextInputType.number,
+                readOnly: _selectedPreset != null,
               ),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: _buildTextField(
                       controller: _proteinController,
-                      decoration: InputDecoration(
-                        labelText: tp.translate('protein_g'),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
+                      labelText: tp.translate('protein_g'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      readOnly: _selectedPreset != null,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
+                    child: _buildTextField(
                       controller: _carbsController,
-                      decoration: InputDecoration(
-                        labelText: tp.translate('carbs_g'),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
+                      labelText: tp.translate('carbs_g'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      readOnly: _selectedPreset != null,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
+                    child: _buildTextField(
                       controller: _fatsController,
-                      decoration: InputDecoration(
-                        labelText: tp.translate('fats_g'),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
+                      labelText: tp.translate('fats_g'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      readOnly: _selectedPreset != null,
                     ),
                   ),
                 ],
@@ -999,7 +753,8 @@ class _AddFoodDialogState extends State<AddFoodDialog> {
               carbs: double.tryParse(_carbsController.text) ?? 0,
               fats: double.tryParse(_fatsController.text) ?? 0,
               micronutrients: scaledMicros,
-              dateAdded: DateTime.now(),
+              dateAdded: Provider.of<NutritionProvider>(context, listen: false).selectedDate,
+              mealType: widget.mealType,
             );
             Provider.of<NutritionProvider>(
               context,
@@ -1044,11 +799,16 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
     final proteinCals = widget.protein * 4;
     final carbsCals = widget.carbs * 4;
     final fatsCals = widget.fats * 9;
+    final totalMacroCals = proteinCals + carbsCals + fatsCals;
+    
+    final pPct = totalMacroCals > 0 ? (proteinCals / totalMacroCals * 100).round() : 0;
+    final cPct = totalMacroCals > 0 ? (carbsCals / totalMacroCals * 100).round() : 0;
+    final fPct = totalMacroCals > 0 ? (fatsCals / totalMacroCals * 100).round() : 0;
 
     return Center(
       child: SizedBox(
-        width: 220,
-        height: 220,
+        width: 150,
+        height: 150,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -1069,7 +829,7 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
                   },
                 ),
                 sectionsSpace: 0,
-                centerSpaceRadius: 85,
+                centerSpaceRadius: 65,
                 startDegreeOffset: -90,
                 sections: [
                   // Protein Section (Index 0)
@@ -1077,53 +837,30 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
                     PieChartSectionData(
                       value: proteinCals,
                       color: AppTheme.accentBlue,
-                      radius: _touchedIndex == 0 ? 30 : 22,
+                      radius: _touchedIndex == 0 ? 16 : 10,
                       showTitle: false,
-                      badgeWidget: _buildMacroBadge(
-                        Icons.egg,
-                        AppTheme.accentBlue,
-                        isHovered: _touchedIndex == 0,
-                        value: '${widget.protein.toInt()}g',
-                      ),
-                      badgePositionPercentageOffset: 0.98,
                     ),
                   // Carbs Section (Index 1)
                   if (carbsCals > 0)
                     PieChartSectionData(
                       value: carbsCals,
                       color: AppTheme.accentGreen,
-                      radius: _touchedIndex == 1 ? 30 : 22,
+                      radius: _touchedIndex == 1 ? 16 : 10,
                       showTitle: false,
-                      badgeWidget: _buildMacroBadge(
-                        Icons.bakery_dining,
-                        AppTheme.accentGreen,
-                        isHovered: _touchedIndex == 1,
-                        value: '${widget.carbs.toInt()}g',
-                      ),
-                      badgePositionPercentageOffset: 0.98,
                     ),
                   // Fats Section (Index 2)
                   if (fatsCals > 0)
                     PieChartSectionData(
                       value: fatsCals,
                       color: AppTheme.accentOrange,
-                      radius: _touchedIndex == 2 ? 30 : 22,
+                      radius: _touchedIndex == 2 ? 16 : 10,
                       showTitle: false,
-                      badgeWidget: _buildMacroBadge(
-                        Icons.opacity,
-                        AppTheme.accentOrange,
-                        isHovered: _touchedIndex == 2,
-                        value: '${widget.fats.toInt()}g',
-                      ),
-                      badgePositionPercentageOffset: 0.98,
                     ),
-                  // Remaining Calories Section (Index 3 if all macros exist, otherwise varies)
-                  // To keep it simple, we check remaining last
                   if (caloriesRemaining > 0)
                     PieChartSectionData(
                       value: caloriesRemaining,
-                      color: AppTheme.cardBackground,
-                      radius: 15,
+                      color: AppTheme.secondaryText.withValues(alpha: 0.2),
+                      radius: 10,
                       showTitle: false,
                     ),
                 ],
@@ -1132,31 +869,41 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal))
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 2),
+                    child: Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
+                  ),
                 Text(
                   _touchedIndex == 0
-                      ? '${proteinCals.toInt()}'
+                      ? '$pPct%'
                       : _touchedIndex == 1
-                      ? '${carbsCals.toInt()}'
+                      ? '$cPct%'
                       : _touchedIndex == 2
-                      ? '${fatsCals.toInt()}'
-                      : caloriesRemaining.toInt().toString(),
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    color: AppTheme.primaryText,
+                      ? '$fPct%'
+                      : '${(widget.caloriesConsumed - widget.caloriesGoal).abs().toInt()}',
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    fontSize: 42,
+                    fontSize: (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal)) ? 26 : null,
+                    color: (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal))
+                        ? Colors.redAccent
+                        : null,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   _touchedIndex == 0
-                      ? '${tp.translate('protein').toUpperCase()} KCAL'
+                      ? tp.translate('protein')
                       : _touchedIndex == 1
-                      ? '${tp.translate('carbs').toUpperCase()} KCAL'
+                      ? tp.translate('carbs')
                       : _touchedIndex == 2
-                      ? '${tp.translate('fats').toUpperCase()} KCAL'
-                      : tp.translate('kcal_left'),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.bold,
+                      ? tp.translate('fats')
+                      : ((widget.caloriesConsumed > widget.caloriesGoal) ? 'Over Goal' : 'Remaining'),
+                  style: TextStyle(
+                    color: (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal))
+                        ? Colors.redAccent
+                        : AppTheme.secondaryText,
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -1208,3 +955,140 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
     );
   }
 }
+
+class _MealSection extends StatelessWidget {
+  final int index;
+  final String mealName;
+  final String emojiStr;
+  final int goalCals;
+  final List<Food> foods;
+  final VoidCallback onAddTap;
+  final VoidCallback onMealTap;
+
+  const _MealSection({
+    required this.index,
+    required this.mealName,
+    required this.emojiStr,
+    required this.goalCals,
+    required this.foods,
+    required this.onAddTap,
+    required this.onMealTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double totalCals = foods.fold(0.0, (sum, food) => sum + food.calories);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.backgroundColor,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(emojiStr, style: const TextStyle(fontSize: 24)),
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: onMealTap,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mealName,
+                          style: const TextStyle(color: AppTheme.primaryText, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${totalCals.toInt()} / ${goalCals} Cal',
+                          style: const TextStyle(color: AppTheme.secondaryText, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: onAddTap,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primaryText,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.add, color: AppTheme.backgroundColor, size: 24),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (foods.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: foods.map((food) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '- ${food.name}',
+                        style: const TextStyle(color: AppTheme.secondaryText, fontSize: 14),
+                      ),
+                    ),
+                    Text(
+                      '${food.calories.toInt()} kcal',
+                      style: const TextStyle(color: AppTheme.secondaryText, fontSize: 14),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                      onPressed: () {
+                        Provider.of<NutritionProvider>(
+                          context,
+                          listen: false,
+                        ).removeFood(food.id);
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(left: 20, bottom: 8, top: 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: ReorderableDragStartListener(
+              index: index,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
+                ),
+                child: const Icon(Icons.drag_handle, color: AppTheme.secondaryText, size: 24),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+

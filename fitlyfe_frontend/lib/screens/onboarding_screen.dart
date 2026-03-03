@@ -5,6 +5,7 @@ import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/providers/workout_provider.dart';
 import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
+import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -24,6 +25,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String _selectedGoal = 'stay_fit'; // Matches key in ARB mapping
   DateTime _selectedDate = DateTime(2000, 1, 1);
 
+  final List<MealInfo> _meals = [
+    MealInfo('Breakfast', '☕', 600),
+    MealInfo('Lunch', '🍲', 800),
+    MealInfo('Dinner', '🥗', 500),
+    MealInfo('Snacks', '🍎', 100),
+  ];
+
   final List<String> _goals = [
     'lose_weight',
     'build_muscle',
@@ -32,7 +40,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   void _nextPage() {
-    if (_currentPage < 4) {
+    if (_currentPage < 5) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubic,
@@ -77,6 +85,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       goal: _selectedGoal,
       dateOfBirth: _selectedDate,
     );
+
+    // Set default meals in NutritionProvider
+    Provider.of<NutritionProvider>(
+      context,
+      listen: false,
+    ).setDefaultMeals(_meals);
 
     // Initialize workouts based on the selected goal immediately
     Provider.of<WorkoutProvider>(
@@ -145,7 +159,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       // Progress Bar
                       Expanded(
                         child: Row(
-                          children: List.generate(5, (index) {
+                          children: List.generate(6, (index) {
                             return Expanded(
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 300),
@@ -183,6 +197,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       _buildDOBStep(l10n),
                       _buildHeightStep(l10n),
                       _buildWeightStep(l10n),
+                      _buildMealsStep(l10n),
                       _buildGoalStep(l10n),
                     ],
                   ),
@@ -204,7 +219,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ),
                       child: Text(
-                        _currentPage == 4 ? l10n.getStarted : l10n.continueText,
+                        _currentPage == 5 ? l10n.getStarted : l10n.continueText,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -585,6 +600,134 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _addMeal() {
+    final TextEditingController nameController = TextEditingController();
+    final TextEditingController emojiController = TextEditingController(text: '🍽️');
+    final TextEditingController calsController = TextEditingController(text: '500');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardBackground,
+        title: const Text('Add Meal', style: TextStyle(color: AppTheme.primaryText)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: emojiController,
+              decoration: const InputDecoration(labelText: 'Emoji'),
+              style: const TextStyle(color: AppTheme.primaryText),
+            ),
+            TextField(
+              controller: nameController,
+               decoration: const InputDecoration(labelText: 'Meal Name'),
+              style: const TextStyle(color: AppTheme.primaryText),
+            ),
+            TextField(
+              controller: calsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Calorie Goal'),
+              style: const TextStyle(color: AppTheme.primaryText),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: AppTheme.secondaryText)),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              final emoji = emojiController.text.trim();
+              final cals = int.tryParse(calsController.text) ?? 0;
+              if (name.isNotEmpty) {
+                setState(() {
+                  _meals.add(MealInfo(name, emoji.isNotEmpty ? emoji : '🍽️', cals));
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('ADD', style: TextStyle(color: AppTheme.accentGreen)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMealsStep(AppLocalizations l10n) {
+    return _buildStepContainer(
+      'Daily Meals',
+      'Set up your daily meal schedule and goals. You can change these later.',
+      Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: _meals.length,
+              itemBuilder: (context, index) {
+                final meal = _meals[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardBackground,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(meal.emoji, style: const TextStyle(fontSize: 24)),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              meal.name,
+                              style: const TextStyle(
+                                color: AppTheme.primaryText,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '${meal.goalCals} Cal',
+                              style: const TextStyle(
+                                color: AppTheme.secondaryText,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        onPressed: () {
+                          setState(() {
+                            _meals.removeAt(index);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: _addMeal,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Meal'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.cardBackground,
+              foregroundColor: AppTheme.accentGreen,
+              minimumSize: const Size(double.infinity, 50),
+            ),
+          ),
+        ],
       ),
     );
   }

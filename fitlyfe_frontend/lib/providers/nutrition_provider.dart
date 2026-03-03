@@ -1,6 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
 
+class MealInfo {
+  final String name;
+  final String emoji;
+  final int goalCals;
+
+  MealInfo(this.name, this.emoji, this.goalCals);
+}
+
 class NutritionProvider extends ChangeNotifier {
   final List<Food> _foods = [];
   
@@ -135,14 +143,106 @@ class NutritionProvider extends ChangeNotifier {
     'magnesium': 0.0,
   };
 
+  DateTime _selectedDate = DateTime.now();
+
+  DateTime get selectedDate => _selectedDate;
+
+  void setSelectedDate(DateTime date) {
+    _selectedDate = date;
+    notifyListeners();
+  }
+
+  final Map<String, List<MealInfo>> _customMealsPerDay = {};
+
+  List<MealInfo> _defaultMeals = [
+    MealInfo('Breakfast', '☕', 600),
+    MealInfo('Lunch', '🍲', 800),
+    MealInfo('Dinner', '🥗', 500),
+    MealInfo('Snacks', '🍎', 100),
+  ];
+
+  void setDefaultMeals(List<MealInfo> meals) {
+    _defaultMeals = meals;
+    notifyListeners();
+  }
+
+  List<MealInfo> getMealsForDate(DateTime date) {
+    final key = '${date.year}-${date.month}-${date.day}';
+    if (_customMealsPerDay.containsKey(key)) {
+      return _customMealsPerDay[key]!;
+    }
+    return List.from(_defaultMeals);
+  }
+
+  void setMealsForDate(DateTime date, List<MealInfo> meals) {
+    final key = '${date.year}-${date.month}-${date.day}';
+    _customMealsPerDay[key] = meals;
+    notifyListeners();
+  }
+
+  void deleteMealForDate(DateTime date, String mealName) {
+    final meals = getMealsForDate(date).toList();
+    meals.removeWhere((m) => m.name == mealName);
+    setMealsForDate(date, meals);
+  }
+
+  void addMealForDate(DateTime date, MealInfo meal) {
+    final meals = getMealsForDate(date).toList();
+    meals.add(meal);
+    setMealsForDate(date, meals);
+  }
+
+  void updateMealForDate(DateTime date, String oldMealName, MealInfo newMeal) {
+    // 1. Update the meal list (keep position)
+    final meals = getMealsForDate(date).toList();
+    final index = meals.indexWhere((m) => m.name == oldMealName);
+    if (index != -1) {
+      meals[index] = newMeal;
+      setMealsForDate(date, meals);
+    } else {
+      meals.add(newMeal);
+      setMealsForDate(date, meals);
+    }
+    
+    // 2. Cascade rename the mealType of foods that were under the old meal name for that day
+    for (int i = 0; i < _foods.length; i++) {
+        var f = _foods[i];
+        if (f.dateAdded.year == date.year &&
+            f.dateAdded.month == date.month &&
+            f.dateAdded.day == date.day && 
+            f.mealType == oldMealName) {
+                // we have to replace the food with a new one matching the updated mealType
+                 _foods[i] = Food(
+                    id: f.id,
+                    name: f.name,
+                    calories: f.calories,
+                    protein: f.protein,
+                    carbs: f.carbs,
+                    fats: f.fats,
+                    kcalPer100g: f.kcalPer100g,
+                    micronutrients: f.micronutrients,
+                    dateAdded: f.dateAdded,
+                    mealType: newMeal.name, // Updated
+                 );
+            }
+    }
+    notifyListeners();
+  }
+
+  void reorderMeals(DateTime date, int oldIndex, int newIndex) {
+    final meals = getMealsForDate(date).toList();
+    final MealInfo meal = meals.removeAt(oldIndex);
+    meals.insert(newIndex, meal);
+    setMealsForDate(date, meals);
+  }
+
   List<Food> get foods => _foods;
   
   List<Food> get todayFoods {
-    final today = DateTime.now();
     return _foods.where((food) {
-      return food.dateAdded.year == today.year &&
-          food.dateAdded.month == today.month &&
-          food.dateAdded.day == today.day;
+      return food.dateAdded.year == _selectedDate.year &&
+          food.dateAdded.month == _selectedDate.month &&
+          food.dateAdded.day == _selectedDate.day;
     }).toList();
   }
 
