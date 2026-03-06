@@ -4,7 +4,6 @@ import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
 import 'package:fitlyfe_frontend/providers/translation_provider.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
-import 'package:fitlyfe_frontend/widgets/food_item_card.dart';
 import 'package:fitlyfe_frontend/widgets/micronutrient_card.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -914,46 +913,6 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
     );
   }
 
-  Widget _buildMacroBadge(
-    IconData icon,
-    Color color, {
-    required bool isHovered,
-    required String value,
-  }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: EdgeInsets.symmetric(horizontal: isHovered ? 8 : 4, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.3),
-            blurRadius: 8,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          if (isHovered) ...[
-            const SizedBox(width: 4),
-            Text(
-              value,
-              style: TextStyle(
-                color: AppTheme.primaryText,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
 
 class _MealSection extends StatelessWidget {
@@ -1010,7 +969,7 @@ class _MealSection extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${totalCals.toInt()} / ${goalCals} Cal',
+                          '${totalCals.toInt()} / $goalCals Cal',
                           style: const TextStyle(color: AppTheme.secondaryText, fontSize: 14),
                         ),
                       ],

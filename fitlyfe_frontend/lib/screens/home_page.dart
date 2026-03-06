@@ -203,7 +203,7 @@ class HomePage extends StatelessWidget {
             mainValue: caloriesValue,
             label: caloriesLabel,
             unit: 'KCAL',
-            color: AppTheme.accentGreen,
+            color: isCaloriesOver ? Colors.redAccent : AppTheme.accentGreen,
             icon: Icons.local_fire_department,
             isWarning: isCaloriesOver,
             onTap: () {

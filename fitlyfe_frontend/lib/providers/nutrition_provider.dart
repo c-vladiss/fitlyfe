@@ -152,6 +152,32 @@ class NutritionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  final Set<String> _favoritePresetIds = {};
+
+  Set<String> get favoritePresetIds => _favoritePresetIds;
+
+  void toggleFavoritePreset(String id) {
+    if (_favoritePresetIds.contains(id)) {
+      _favoritePresetIds.remove(id);
+    } else {
+      _favoritePresetIds.add(id);
+    }
+    notifyListeners();
+  }
+
+  final Set<String> _favoriteRecipeIds = {};
+
+  Set<String> get favoriteRecipeIds => _favoriteRecipeIds;
+
+  void toggleFavoriteRecipe(String id) {
+    if (_favoriteRecipeIds.contains(id)) {
+      _favoriteRecipeIds.remove(id);
+    } else {
+      _favoriteRecipeIds.add(id);
+    }
+    notifyListeners();
+  }
+
   final Map<String, List<MealInfo>> _customMealsPerDay = {};
 
   List<MealInfo> _defaultMeals = [
