@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/utils/meal_icon_mapping.dart';
+import 'package:fitlyfe_frontend/screens/nutrition_page.dart';
 
 class MealSettingsPage extends StatefulWidget {
   final DateTime date;
@@ -49,7 +50,7 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
     super.initState();
     _isNew = widget.currentMeal == null;
     _nameController = TextEditingController(text: widget.currentMeal?.name ?? '');
-    _goalController = TextEditingController(text: (widget.currentMeal?.goalCals ?? 500).toString());
+    _goalController = TextEditingController(text: widget.currentMeal != null ? widget.currentMeal!.goalCals.toString() : '');
     _currentIconKey = widget.currentMeal?.emoji ?? 'flatware';
   }
 
@@ -68,11 +69,31 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
     final provider = Provider.of<NutritionProvider>(context, listen: false);
 
     if (_isNew) {
-      provider.addMealForDate(widget.date, MealInfo(name, _currentIconKey, goal));
+      provider.addMealGlobally(MealInfo(name, _currentIconKey, goal));
+      Navigator.pop(context);
     } else {
-      provider.updateMealForDate(widget.date, widget.currentMeal!.name, MealInfo(name, _currentIconKey, goal));
+      provider.updateMealGlobally(widget.currentMeal!.name, MealInfo(name, _currentIconKey, goal));
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => AddFoodSearchSheet(mealType: name),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(0.0, 0.05);
+            const end = Offset.zero;
+            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.easeOutCubic));
+            
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 400),
+        ),
+      );
     }
-    Navigator.pop(context);
   }
 
   void _showEmojiPicker() {
@@ -97,7 +118,17 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
               itemCount: _iconPickerList.length,
               itemBuilder: (context, index) => GestureDetector(
                 onTap: () {
-                  setState(() => _currentIconKey = _iconPickerList[index]);
+                  final newIcon = _iconPickerList[index];
+                  setState(() => _currentIconKey = newIcon);
+                  
+                  if (!_isNew && widget.currentMeal != null) {
+                    final provider = Provider.of<NutritionProvider>(context, listen: false);
+                    provider.updateMealGlobally(
+                      widget.currentMeal!.name, 
+                      MealInfo(widget.currentMeal!.name, newIcon, widget.currentMeal!.goalCals)
+                    );
+                  }
+                  
                   Navigator.pop(context);
                 },
                 child: Container(
@@ -155,7 +186,7 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppTheme.primaryText, fontWeight: FontWeight.bold, fontSize: 15),
                 decoration: const InputDecoration(
-                  hintText: 'Enter Meal Name',
+                  hintText: 'Add Name',
                   hintStyle: TextStyle(color: AppTheme.secondaryText, fontSize: 15),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.only(bottom: 12),
@@ -187,7 +218,7 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
                       TextButton(
                         onPressed: () {
                           Provider.of<NutritionProvider>(context, listen: false)
-                              .deleteMealForDate(widget.date, widget.currentMeal!.name);
+                              .deleteMealGlobally(widget.currentMeal!.name);
                           Navigator.pop(context); // Pop dialog
                           Navigator.pop(context); // Pop page
                         },
@@ -265,6 +296,8 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
                                                 isDense: true,
                                                 contentPadding: EdgeInsets.zero,
                                                 border: InputBorder.none,
+                                                hintText: 'Add Calories',
+                                                hintStyle: TextStyle(color: AppTheme.secondaryText, fontSize: 13, fontWeight: FontWeight.normal),
                                               ),
                                               onChanged: (v) => setState(() {}),
                                             ),

@@ -78,8 +78,7 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
         behavior: SnackBarBehavior.floating,
       )
     );
-
-    Navigator.pop(context, true);
+    Navigator.pop(context, newFood);
   }
 
   @override

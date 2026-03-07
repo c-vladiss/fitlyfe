@@ -206,6 +206,54 @@ class NutritionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void deleteMealGlobally(String mealName) {
+    _defaultMeals.removeWhere((m) => m.name == mealName);
+    for (var key in _customMealsPerDay.keys) {
+      _customMealsPerDay[key]!.removeWhere((m) => m.name == mealName);
+    }
+    notifyListeners();
+  }
+
+  void addMealGlobally(MealInfo meal) {
+    if (!_defaultMeals.any((m) => m.name == meal.name)) {
+      _defaultMeals.add(meal);
+    }
+    for (var key in _customMealsPerDay.keys) {
+      if (!_customMealsPerDay[key]!.any((m) => m.name == meal.name)) {
+        _customMealsPerDay[key]!.add(meal);
+      }
+    }
+    notifyListeners();
+  }
+
+  void updateMealGlobally(String oldMealName, MealInfo newMeal) {
+    int defaultIndex = _defaultMeals.indexWhere((m) => m.name == oldMealName);
+    if (defaultIndex != -1) {
+      _defaultMeals[defaultIndex] = newMeal;
+    } else {
+      _defaultMeals.add(newMeal);
+    }
+
+    for (var key in _customMealsPerDay.keys) {
+      var meals = _customMealsPerDay[key]!;
+      int idx = meals.indexWhere((m) => m.name == oldMealName);
+      if (idx != -1) {
+        meals[idx] = newMeal;
+      } else {
+        meals.add(newMeal);
+      }
+    }
+
+    // Cascade rename the mealType of foods that were under the old meal name for ALL days
+    for (int i = 0; i < _foods.length; i++) {
+        var f = _foods[i];
+        if (f.mealType == oldMealName) {
+           _foods[i] = f.copyWith(mealType: newMeal.name);
+        }
+    }
+    notifyListeners();
+  }
+
   void deleteMealForDate(DateTime date, String mealName) {
     final meals = getMealsForDate(date).toList();
     meals.removeWhere((m) => m.name == mealName);

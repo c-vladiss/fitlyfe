@@ -6,9 +6,12 @@ import 'package:fitlyfe_frontend/providers/translation_provider.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/widgets/micronutrient_card.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
+import 'package:fitlyfe_frontend/utils/meal_icon_mapping.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:fitlyfe_frontend/screens/nutrition_details_page.dart';
 import 'package:fitlyfe_frontend/screens/meal_settings_page.dart';
+import 'package:fitlyfe_frontend/screens/food_details_page.dart';
+import 'package:simple_barcode_scanner/simple_barcode_scanner.dart';
 import 'package:intl/intl.dart';
 
 class NutritionPage extends StatelessWidget {
@@ -367,7 +370,12 @@ class NutritionPage extends StatelessWidget {
   }
 
   void _showAddFoodDialog(BuildContext context, TranslationProvider tp, {String? mealType}) {
-    showDialog(context: context, builder: (context) => AddFoodDialog(mealType: mealType));
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddFoodSearchSheet(mealType: mealType),
+      ),
+    );
   }
 
   void _showAddVitaminDialog(BuildContext context, TranslationProvider tp) {
@@ -391,6 +399,15 @@ class NutritionPage extends StatelessWidget {
                 dropdownColor: AppTheme.cardBackground,
                 decoration: InputDecoration(
                   labelText: tp.translate('vitamin_type'),
+                  labelStyle: const TextStyle(color: AppTheme.secondaryText),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.5)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.accentGreen),
+                  ),
                 ),
                 items: NutritionProvider.micronutrientRDIs.keys.map((type) {
                   return DropdownMenuItem(
@@ -407,11 +424,21 @@ class NutritionPage extends StatelessWidget {
                 controller: amountController,
                 decoration: InputDecoration(
                   labelText: tp.translate('amount'),
+                  labelStyle: const TextStyle(color: AppTheme.secondaryText),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.5)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.accentGreen),
+                  ),
                   suffixText:
                       selectedType.contains('vitamin_a') ||
                           selectedType.contains('vitamin_d')
                       ? 'mcg'
                       : 'mg',
+                  suffixStyle: const TextStyle(color: AppTheme.secondaryText),
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -445,25 +472,38 @@ class NutritionPage extends StatelessWidget {
   }
 }
 
-class AddFoodDialog extends StatefulWidget {
+class AddFoodSearchSheet extends StatefulWidget {
   final String? mealType;
-  const AddFoodDialog({super.key, this.mealType});
+  const AddFoodSearchSheet({super.key, this.mealType});
 
   @override
-  State<AddFoodDialog> createState() => _AddFoodDialogState();
+  State<AddFoodSearchSheet> createState() => _AddFoodSearchSheetState();
 }
 
-class _AddFoodDialogState extends State<AddFoodDialog> {
+class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
   final _nameController = TextEditingController();
   final _caloriesController = TextEditingController();
   final _proteinController = TextEditingController();
   final _carbsController = TextEditingController();
   final _fatsController = TextEditingController();
-  final _weightController = TextEditingController(text: '100');
   final _searchController = TextEditingController();
 
-  Food? _selectedPreset;
   List<Food> _filteredPresets = NutritionProvider.presets;
+  bool _showManualMenu = false;
+  List<Food> _sessionAddedFoods = [];
+  final Set<String> _animatingFoodIds = {};
+  bool _justAddedAnimation = false;
+
+  String _selectedCategory = 'Foods';
+  String _selectedTab = 'Frequent';
+
+  static final _mockMeals = [
+    Food(id: 'm1', name: 'Chicken & Rice combo', calories: 450, protein: 40, carbs: 50, fats: 10, dateAdded: DateTime.now()),
+    Food(id: 'm2', name: 'Avocado Toast & Eggs', calories: 350, protein: 20, carbs: 30, fats: 15, dateAdded: DateTime.now()),
+  ];
+  static final _mockRecipes = [
+    Food(id: 'r1', name: 'Protein Pancakes', calories: 400, protein: 35, carbs: 45, fats: 8, dateAdded: DateTime.now()),
+  ];
 
   @override
   void initState() {
@@ -472,72 +512,325 @@ class _AddFoodDialogState extends State<AddFoodDialog> {
   }
 
   void _filterPresets() {
+    final query = _searchController.text.toLowerCase();
+    
+    // Safety check incase Provider isn't ready in early initState callbacks
+    if (!mounted) return;
+    final provider = Provider.of<NutritionProvider>(context, listen: false);
+
+    List<Food> baseList;
+    if (_selectedTab == 'Recent') {
+      final recentNames = <String>{};
+      final recentList = <Food>[];
+      for (var f in provider.foods.reversed) {
+        if (!recentNames.contains(f.name)) {
+          recentNames.add(f.name);
+          recentList.add(f);
+        }
+      }
+      baseList = recentList;
+    } else {
+      if (_selectedCategory == 'Foods') {
+        baseList = NutritionProvider.presets;
+      } else if (_selectedCategory == 'Meals') {
+        baseList = _mockMeals;
+      } else {
+        baseList = _mockRecipes;
+      }
+    }
+
+    if (_selectedTab == 'Favorites') {
+      baseList = baseList.where((p) => provider.favoritePresetIds.contains(p.id)).toList();
+    }
+
     setState(() {
-      _filteredPresets = NutritionProvider.presets
-          .where(
-            (p) => p.name.toLowerCase().contains(
-              _searchController.text.toLowerCase(),
-            ),
-          )
+      _filteredPresets = baseList
+          .where((p) => p.name.toLowerCase().contains(query))
           .toList();
     });
   }
 
-  void _onPresetSelected(Food preset) {
+  void _addFood(Food baseFood) {
+    final food = Food(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: baseFood.name,
+      calories: baseFood.kcalPer100g ?? baseFood.calories,
+      protein: baseFood.protein,
+      carbs: baseFood.carbs,
+      fats: baseFood.fats,
+      micronutrients: baseFood.micronutrients,
+      dateAdded: Provider.of<NutritionProvider>(context, listen: false).selectedDate,
+      mealType: widget.mealType,
+    );
+    Provider.of<NutritionProvider>(context, listen: false).addFood(food);
+    
     setState(() {
-      _selectedPreset = preset;
-      _nameController.text = preset.name;
-      _updateFieldsFromWeight();
+      _sessionAddedFoods.add(food);
+      _animatingFoodIds.add(baseFood.id);
+    });
+
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() => _animatingFoodIds.remove(baseFood.id));
+      }
+    });
+
+    _triggerJustAddedAnimation();
+  }
+
+  void _triggerJustAddedAnimation() {
+    setState(() => _justAddedAnimation = true);
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _justAddedAnimation = false);
     });
   }
 
-  void _updateFieldsFromWeight() {
-    if (_selectedPreset == null) return;
-    final weight = double.tryParse(_weightController.text) ?? 0;
-    final ratio = weight / 100.0;
-
-    _caloriesController.text = (_selectedPreset!.kcalPer100g! * ratio)
-        .toInt()
-        .toString();
-    _proteinController.text = (_selectedPreset!.protein * ratio)
-        .toStringAsFixed(1);
-    _carbsController.text = (_selectedPreset!.carbs * ratio).toStringAsFixed(1);
-    _fatsController.text = (_selectedPreset!.fats * ratio).toStringAsFixed(1);
-  }
-
-  Widget _buildTextField({
+  Widget _buildDarkTextField({
     required TextEditingController controller,
-    required String labelText,
-    String? hintText,
+    required String hintText,
     TextInputType? keyboardType,
-    bool readOnly = false,
-    ValueChanged<String>? onChanged,
   }) {
-    return TextField(
-      controller: controller,
-      readOnly: readOnly,
-      style: TextStyle(color: readOnly ? AppTheme.secondaryText : AppTheme.primaryText),
-      keyboardType: keyboardType,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        filled: true,
-        fillColor: AppTheme.backgroundColor.withValues(alpha: 0.3),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.3)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.3)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: readOnly ? AppTheme.secondaryText.withValues(alpha: 0.3) : AppTheme.accentGreen),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: const TextStyle(color: AppTheme.primaryText, fontSize: 16),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: AppTheme.secondaryText, fontSize: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          border: InputBorder.none,
+          isDense: true,
         ),
       ),
+    );
+  }
+
+  Widget _buildCategoryBox(String label, IconData iconData, Color iconColor) {
+    final isSelected = _selectedCategory == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedCategory = label;
+          _filterPresets();
+        });
+      },
+      child: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            height: 64,
+            width: 64,
+            decoration: BoxDecoration(
+              color: isSelected ? iconColor.withValues(alpha: 0.2) : AppTheme.cardBackground.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isSelected ? iconColor : Colors.transparent, width: 2),
+            ),
+            alignment: Alignment.center,
+            child: Icon(iconData, size: 28, color: iconColor),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: TextStyle(color: isSelected ? AppTheme.primaryText : AppTheme.secondaryText, fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(String label) {
+    final isSelected = _selectedTab == label;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedTab = label;
+            _filterPresets();
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: AppTheme.cardBackground,
+                  borderRadius: BorderRadius.circular(8),
+                )
+              : null,
+          alignment: Alignment.center,
+          child: Text(label, style: TextStyle(color: isSelected ? AppTheme.primaryText : AppTheme.secondaryText, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 13)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(TranslationProvider tp) {
+    String categoryLabel = _selectedCategory.toLowerCase();
+    String emptyMessage = 'The food you are searching is not in the database.';
+    bool showManualButton = false;
+
+    if (_selectedTab == 'Recent') {
+      emptyMessage = 'There are no recent $categoryLabel added.';
+    } else if (_selectedTab == 'Favorites') {
+      emptyMessage = 'There are no favorites $categoryLabel.';
+    } else if (_selectedCategory != 'Foods') {
+      emptyMessage = 'No $categoryLabel found.';
+    } else {
+      showManualButton = true;
+    }
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off, size: 64, color: AppTheme.secondaryText),
+            const SizedBox(height: 16),
+            Text(
+              emptyMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.primaryText, fontSize: 16),
+            ),
+            if (showManualButton) ...[
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => setState(() => _showManualMenu = true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentGreen,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Add Manually', style: TextStyle(color: AppTheme.backgroundColor, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManualMenu() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppTheme.primaryText),
+                onPressed: () => setState(() => _showManualMenu = false),
+              ),
+              const Text('Manual Entry', style: TextStyle(color: AppTheme.primaryText, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildDarkTextField(controller: _nameController, hintText: 'Food Name'),
+          const SizedBox(height: 16),
+          _buildDarkTextField(controller: _caloriesController, hintText: 'Calories', keyboardType: TextInputType.number),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildDarkTextField(controller: _proteinController, hintText: 'Protein (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildDarkTextField(controller: _carbsController, hintText: 'Carbs (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildDarkTextField(controller: _fatsController, hintText: 'Fats (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+            ],
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: () {
+              if (_nameController.text.isEmpty) return;
+              final food = Food(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: _nameController.text,
+                calories: double.tryParse(_caloriesController.text) ?? 0,
+                protein: double.tryParse(_proteinController.text) ?? 0,
+                carbs: double.tryParse(_carbsController.text) ?? 0,
+                fats: double.tryParse(_fatsController.text) ?? 0,
+                micronutrients: const {},
+                dateAdded: Provider.of<NutritionProvider>(context, listen: false).selectedDate,
+                mealType: widget.mealType,
+              );
+              Provider.of<NutritionProvider>(context, listen: false).addFood(food);
+              setState(() {
+                _sessionAddedFoods.add(food);
+                _showManualMenu = false;
+                _nameController.clear();
+                _caloriesController.clear();
+                _proteinController.clear();
+                _carbsController.clear();
+                _fatsController.clear();
+              });
+              _triggerJustAddedAnimation();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accentGreen,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Save Food', style: TextStyle(color: AppTheme.backgroundColor, fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSessionAddedFoods() {
+    showModalBottomSheet(
+      context: context,
+      barrierColor: Colors.transparent,
+      backgroundColor: AppTheme.backgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.2), width: 1),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              height: MediaQuery.of(context).size.height * 0.5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Just Added', style: TextStyle(color: AppTheme.primaryText, fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: _sessionAddedFoods.isEmpty 
+                      ? const Center(child: Text('No foods added yet', style: TextStyle(color: AppTheme.secondaryText)))
+                      : ListView.separated(
+                      itemCount: _sessionAddedFoods.length,
+                      separatorBuilder: (context, index) => Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),
+                      itemBuilder: (context, index) {
+                        final food = _sessionAddedFoods[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(food.name, style: const TextStyle(color: AppTheme.primaryText, fontSize: 16)),
+                          subtitle: Text('${food.calories.toInt()} kcal', style: const TextStyle(color: AppTheme.secondaryText, fontSize: 12)),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline, color: AppTheme.accentOrange),
+                            onPressed: () {
+                              Provider.of<NutritionProvider>(context, listen: false).removeFood(food.id);
+                              setModalState(() => _sessionAddedFoods.removeAt(index));
+                              setState(() {}); // trigger update in parent pill
+                              if (_sessionAddedFoods.isEmpty) Navigator.pop(context);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -545,225 +838,239 @@ class _AddFoodDialogState extends State<AddFoodDialog> {
   Widget build(BuildContext context) {
     final tp = Provider.of<TranslationProvider>(context);
 
-    return AlertDialog(
-      backgroundColor: AppTheme.cardBackground,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Text(
-        tp.translate('add_food'),
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Search & Presets
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    tp.translate('presets'),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.accentGreen,
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leadingWidth: 160,
+        leading: GestureDetector(
+          onTap: _sessionAddedFoods.isNotEmpty ? _showSessionAddedFoods : null,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                  transform: Matrix4.identity()..scale(_justAddedAnimation ? 1.05 : 1.0),
+                  transformAlignment: Alignment.centerLeft,
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _justAddedAnimation ? AppTheme.accentGreen.withValues(alpha: 0.2) : AppTheme.cardBackground,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: _justAddedAnimation ? AppTheme.accentGreen : Colors.transparent,
+                      width: 1.5,
                     ),
                   ),
-                  if (_selectedPreset != null)
-                    GestureDetector(
-                      onTap: () => setState(() => _selectedPreset = null),
-                      child: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.redAccent,
-                      ),
-                    ),
+                  child: const Text(
+                    'Just Added',
+                    style: TextStyle(color: AppTheme.accentGreen, fontSize: 12, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        title: Text(
+          widget.mealType ?? tp.translate('add_food'),
+          style: const TextStyle(color: AppTheme.primaryText, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          // Search box
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.cardBackground.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.accentGreen, width: 1.5),
+              ),
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(color: AppTheme.primaryText, fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: 'What did you have for ${widget.mealType?.toLowerCase() ?? 'meal'}?',
+                  hintStyle: TextStyle(color: AppTheme.secondaryText.withValues(alpha: 0.8), fontSize: 15),
+                  prefixIcon: const Icon(Icons.search, color: AppTheme.secondaryText, size: 24),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner, color: AppTheme.secondaryText, size: 24),
+                    onPressed: () async {
+                      var res = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SimpleBarcodeScannerPage(),
+                        ),
+                      );
+                      if (res is String && res != '-1' && mounted) {
+                        setState(() {
+                          _searchController.text = res;
+                        });
+                        // At this point we would trigger a lookup in the OpenFoodFacts API, 
+                        // but for now we just populate the search bar with the barcode.
+                      }
+                    },
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Categories row
+          if (!_showManualMenu)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildCategoryBox('Foods', Icons.restaurant, AppTheme.accentOrange),
+                  const SizedBox(width: 16),
+                  _buildCategoryBox('Meals', Icons.lunch_dining, AppTheme.accentGreen),
+                  const SizedBox(width: 16),
+                  _buildCategoryBox('Recipes', Icons.menu_book, AppTheme.accentYellow),
                 ],
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: tp.translate('search_foods'),
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 44,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _filteredPresets.length,
-                  itemBuilder: (context, index) {
-                    final preset = _filteredPresets[index];
-                    final isSelected = _selectedPreset?.id == preset.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ActionChip(
-                        label: Text(preset.name),
-                        onPressed: () => _onPresetSelected(preset),
-                        backgroundColor: isSelected
-                            ? AppTheme.accentGreen
-                            : AppTheme.cardBackground,
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? AppTheme.backgroundColor
-                              : AppTheme.primaryText,
-                          fontSize: 12,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(
-                            color: isSelected
-                                ? AppTheme.accentGreen
-                                : AppTheme.secondaryText.withValues(alpha: 0.3),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
+            ),
+          
+          if (!_showManualMenu) const SizedBox(height: 24),
 
-              Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
-              const SizedBox(height: 16),
-
-              if (_selectedPreset != null) ...[
-                Row(
+          // Tabs
+          if (!_showManualMenu)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBackground.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
                   children: [
-                    Expanded(
-                      child: _buildTextField(
-                        controller: _weightController,
-                        labelText: tp.translate('weight_g'),
-                        keyboardType: TextInputType.number,
-                        onChanged: (_) => _updateFieldsFromWeight(),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _selectedPreset!.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '${_selectedPreset!.kcalPer100g} ${tp.translate('kcal')} ${tp.translate('per_100g')}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppTheme.secondaryText,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildTab('Frequent'),
+                    _buildTab('Recent'),
+                    _buildTab('Favorites'),
                   ],
                 ),
-                const SizedBox(height: 16),
-              ],
+              ),
+            ),
 
-              _buildTextField(
-                controller: _nameController,
-                labelText: tp.translate('food_name'),
-                hintText: tp.translate('food_name_hint'),
-                readOnly: _selectedPreset != null,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _caloriesController,
-                labelText: tp.translate('calories'),
-                hintText: '350',
-                keyboardType: TextInputType.number,
-                readOnly: _selectedPreset != null,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _proteinController,
-                      labelText: tp.translate('protein_g'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      readOnly: _selectedPreset != null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _carbsController,
-                      labelText: tp.translate('carbs_g'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      readOnly: _selectedPreset != null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _fatsController,
-                      labelText: tp.translate('fats_g'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      readOnly: _selectedPreset != null,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          if (!_showManualMenu) const SizedBox(height: 16),
+
+          // List or Manual form
+          Expanded(
+            child: _showManualMenu
+                ? _buildManualMenu()
+                : (_filteredPresets.isEmpty)
+                    ? _buildEmptyState(tp)
+                    : ListView.separated(
+                        itemCount: _filteredPresets.length,
+                        separatorBuilder: (context, index) => Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),
+                        itemBuilder: (context, index) {
+                          final preset = _filteredPresets[index];
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            title: Text(preset.name, style: const TextStyle(color: AppTheme.primaryText, fontSize: 16, fontWeight: FontWeight.w500)),
+                            subtitle: Text('1 regular serving', style: TextStyle(color: AppTheme.secondaryText.withValues(alpha: 0.8), fontSize: 12)),
+                            onTap: () async {
+                              final addedFood = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FoodDetailsPage(
+                                    food: preset,
+                                    mealType: widget.mealType,
+                                  ),
+                                ),
+                              );
+                              if (addedFood != null && addedFood is Food) {
+                                setState(() {
+                                  _sessionAddedFoods.add(addedFood);
+                                });
+                              }
+                            },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('${(preset.kcalPer100g ?? preset.calories).toInt()} kcal', style: const TextStyle(color: AppTheme.primaryText, fontSize: 14)),
+                                const SizedBox(width: 12),
+                                Consumer<NutritionProvider>(
+                                  builder: (context, provider, child) {
+                                    final isFav = provider.favoritePresetIds.contains(preset.id);
+                                    return GestureDetector(
+                                      onTap: () {
+                                        provider.toggleFavoritePreset(preset.id);
+                                        if (_selectedTab == 'Favorites') {
+                                           // Re-filter so to immediately remove from screen if untoggled in the filtered view
+                                           _filterPresets();
+                                        }
+                                      },
+                                      child: Icon(
+                                        isFav ? Icons.star : Icons.star_border,
+                                        color: isFav ? AppTheme.accentYellow : AppTheme.secondaryText.withValues(alpha: 0.5),
+                                        size: 24,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () => _addFood(preset),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _animatingFoodIds.contains(preset.id) ? AppTheme.accentGreen : Colors.transparent,
+                                      border: Border.all(color: AppTheme.accentGreen, width: 1.5),
+                                    ),
+                                    child: Icon(
+                                      _animatingFoodIds.contains(preset.id) ? Icons.check : Icons.add, 
+                                      color: _animatingFoodIds.contains(preset.id) ? AppTheme.backgroundColor : AppTheme.accentGreen, 
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
           ),
-        ),
+
+          // Bottom sticky "Done" button if not in manual menu
+          if (!_showManualMenu)
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 40.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentGreen,
+                    foregroundColor: AppTheme.backgroundColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    elevation: 0,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Done', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            tp.translate('cancel'),
-            style: const TextStyle(color: AppTheme.secondaryText),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (_nameController.text.isEmpty) return;
-
-            final weight = double.tryParse(_weightController.text) ?? 100;
-            final ratio = weight / 100.0;
-            final scaledMicros = <String, double>{};
-
-            if (_selectedPreset != null) {
-              _selectedPreset!.micronutrients.forEach((key, value) {
-                scaledMicros[key] = value * ratio;
-              });
-            }
-
-            final food = Food(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              name: _nameController.text,
-              calories: double.tryParse(_caloriesController.text) ?? 0,
-              protein: double.tryParse(_proteinController.text) ?? 0,
-              carbs: double.tryParse(_carbsController.text) ?? 0,
-              fats: double.tryParse(_fatsController.text) ?? 0,
-              micronutrients: scaledMicros,
-              dateAdded: Provider.of<NutritionProvider>(context, listen: false).selectedDate,
-              mealType: widget.mealType,
-            );
-            Provider.of<NutritionProvider>(
-              context,
-              listen: false,
-            ).addFood(food);
-            Navigator.pop(context);
-          },
-          child: Text(tp.translate('add')),
-        ),
-      ],
     );
   }
 }
@@ -831,11 +1138,18 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
                 centerSpaceRadius: 65,
                 startDegreeOffset: -90,
                 sections: [
+                  if (totalMacroCals == 0) // Show empty gray circle if no macros
+                    PieChartSectionData(
+                      value: 1,
+                      color: AppTheme.secondaryText.withValues(alpha: 0.2),
+                      radius: 10,
+                      showTitle: false,
+                    ),
                   // Protein Section (Index 0)
                   if (proteinCals > 0)
                     PieChartSectionData(
                       value: proteinCals,
-                      color: AppTheme.accentBlue,
+                      color: (widget.caloriesConsumed > widget.caloriesGoal) ? Colors.redAccent : AppTheme.accentBlue,
                       radius: _touchedIndex == 0 ? 16 : 10,
                       showTitle: false,
                     ),
@@ -843,7 +1157,7 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
                   if (carbsCals > 0)
                     PieChartSectionData(
                       value: carbsCals,
-                      color: AppTheme.accentGreen,
+                      color: (widget.caloriesConsumed > widget.caloriesGoal) ? Colors.redAccent : AppTheme.accentGreen,
                       radius: _touchedIndex == 1 ? 16 : 10,
                       showTitle: false,
                     ),
@@ -851,7 +1165,7 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
                   if (fatsCals > 0)
                     PieChartSectionData(
                       value: fatsCals,
-                      color: AppTheme.accentOrange,
+                      color: (widget.caloriesConsumed > widget.caloriesGoal) ? Colors.redAccent : AppTheme.accentOrange,
                       radius: _touchedIndex == 2 ? 16 : 10,
                       showTitle: false,
                     ),
@@ -955,7 +1269,7 @@ class _MealSection extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
-                    child: Text(emojiStr, style: const TextStyle(fontSize: 24)),
+                    child: MealIconMapping.buildIcon(emojiStr, size: 24),
                   ),
                   const SizedBox(width: 16),
                   GestureDetector(
