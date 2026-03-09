@@ -9,6 +9,8 @@ export 'package:fitlyfe_frontend/services/graphql_service.dart'
     show BackendNetworkException, BackendSyncException;
 
 class AppState extends ChangeNotifier {
+  final GraphQLService _graphQLService;
+
   Session? _session;
   Session? get session => _session;
 
@@ -30,7 +32,8 @@ class AppState extends ChangeNotifier {
 
   bool get isAuthenticated => _session != null;
 
-  final _graphQLService = GraphQLService();
+  AppState({GraphQLService? graphQLService})
+      : _graphQLService = graphQLService ?? GraphQLService();
 
   User _currentUser = User(
     id: '1',
@@ -93,14 +96,16 @@ class AppState extends ChangeNotifier {
           .where((s) => s != null && s.isNotEmpty)
           .join(' ')
           .trim();
-      final displayName = (result.profileDisplayName?.isNotEmpty == true)
-          ? result.profileDisplayName!
+      final profileDisplayName = result.profile?.displayName;
+      final displayName = (profileDisplayName?.isNotEmpty == true)
+          ? profileDisplayName!
           : (oauthName.isNotEmpty ? oauthName : _currentUser.name);
 
       // Calculate age from date-of-birth if available
       int age = _currentUser.age;
-      if (result.profileDateOfBirth != null) {
-        final dob = DateTime.tryParse(result.profileDateOfBirth!);
+      final profileDateOfBirth = result.profile?.dateOfBirth;
+      if (profileDateOfBirth != null) {
+        final dob = DateTime.tryParse(profileDateOfBirth);
         if (dob != null) {
           age = _calculateAge(dob);
         }
@@ -110,10 +115,10 @@ class AppState extends ChangeNotifier {
         id: result.id,
         email: result.email,
         name: displayName,
-        height: result.profileHeightCm ?? _currentUser.height,
-        weight: result.profileWeightKg ?? _currentUser.weight,
+        height: result.profile?.heightCm ?? _currentUser.height,
+        weight: result.profile?.weightKg ?? _currentUser.weight,
         age: age,
-        goal: result.profileGoal ?? _currentUser.goal,
+        goal: result.profile?.goal ?? _currentUser.goal,
       );
     } on BackendNetworkException {
       _syncFailed = true;

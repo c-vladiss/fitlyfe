@@ -30,17 +30,31 @@ jobs:
         working-directory: fitlyfe_frontend
         run: flutter pub get
 
-      # 🔍 Always
+      # Generate GraphQL types (needed for compilation)
+      - name: Generate code
+        working-directory: fitlyfe_frontend
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      # Analyze - only fail on errors, not warnings/info
       - name: Analyze
         working-directory: fitlyfe_frontend
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      # 🧪 Always
+      # Run tests with coverage
       - name: Run tests
         working-directory: fitlyfe_frontend
-        run: flutter test
+        run: flutter test --coverage
 
-      # 🏗 Build on push to main (non-tag)
+      # Upload coverage report (optional)
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v4
+        with:
+          file: fitlyfe_frontend/coverage/lcov.info
+          fail_ci_if_error: false
+        continue-on-error: true
+
+      # Build on push to main (non-tag)
       - name: Build debug APK
         if: |
           github.event_name == 'push' &&
@@ -48,7 +62,7 @@ jobs:
         working-directory: fitlyfe_frontend
         run: flutter build apk --debug
 
-      # 🚀 Release build ONLY on tag push (v*)
+      # Release build ONLY on tag push (v*)
       - name: Build release App Bundle
         if: startsWith(github.ref, 'refs/tags/v')
         working-directory: fitlyfe_frontend

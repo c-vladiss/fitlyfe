@@ -2,6 +2,7 @@ package com.fitlyfe.fitlyfe_backend.api.user.controller
 
 import com.fitlyfe.fitlyfe_backend.api.auth.controller.UserProfileData
 import com.fitlyfe.fitlyfe_backend.api.auth.controller.toProfileData
+import com.fitlyfe.fitlyfe_backend.api.user.entity.UserEntity
 import com.fitlyfe.fitlyfe_backend.api.user.entity.UserGoalsEntity
 import com.fitlyfe.fitlyfe_backend.api.user.service.UserService
 import org.springframework.graphql.data.method.annotation.Argument
@@ -18,6 +19,17 @@ import java.util.UUID
 class UserGraphQLController(
     private val userService: UserService
 ) {
+    @QueryMapping
+    @PreAuthorize("isAuthenticated()")
+    fun me(@AuthenticationPrincipal jwt: Jwt): UserEntity? {
+        val supabaseId = UUID.fromString(jwt.subject)
+        return try {
+            userService.findBySupabaseId(supabaseId)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     @MutationMapping
     @PreAuthorize("isAuthenticated()")
     fun updateUserProfile(

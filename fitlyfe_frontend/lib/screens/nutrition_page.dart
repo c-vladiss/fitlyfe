@@ -11,7 +11,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:fitlyfe_frontend/screens/nutrition_details_page.dart';
 import 'package:fitlyfe_frontend/screens/meal_settings_page.dart';
 import 'package:fitlyfe_frontend/screens/food_details_page.dart';
-import 'package:simple_barcode_scanner/simple_barcode_scanner.dart';
+import 'package:fitlyfe_frontend/screens/barcode_scanner_page.dart';
 import 'package:intl/intl.dart';
 
 class NutritionPage extends StatelessWidget {
@@ -490,7 +490,7 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
 
   List<Food> _filteredPresets = NutritionProvider.presets;
   bool _showManualMenu = false;
-  List<Food> _sessionAddedFoods = [];
+  final List<Food> _sessionAddedFoods = [];
   final Set<String> _animatingFoodIds = {};
   bool _justAddedAnimation = false;
 
@@ -857,7 +857,7 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutBack,
-                  transform: Matrix4.identity()..scale(_justAddedAnimation ? 1.05 : 1.0),
+                  transform: Matrix4.identity()..scaleByDouble(_justAddedAnimation ? 1.05 : 1.0, _justAddedAnimation ? 1.05 : 1.0, 1.0, 1.0),
                   transformAlignment: Alignment.centerLeft,
                   constraints: const BoxConstraints(maxWidth: 160),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -910,10 +910,10 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
                       var res = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const SimpleBarcodeScannerPage(),
+                          builder: (context) => const BarcodeScannerPage(),
                         ),
                       );
-                      if (res is String && res != '-1' && mounted) {
+                      if (res is String && mounted) {
                         setState(() {
                           _searchController.text = res;
                         });

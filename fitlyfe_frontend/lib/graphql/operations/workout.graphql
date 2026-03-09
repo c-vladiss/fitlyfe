@@ -1,0 +1,31 @@
+query WorkoutSessions($limit: Int) {
+  workoutSessions(limit: $limit) {
+    id
+    startedAt
+    endedAt
+    durationSeconds
+    workoutType
+    caloriesBurned
+    notes
+    exercises {
+      id
+      exercise {
+        id
+        name
+        description
+        muscleGroup
+        equipment
+      }
+      orderIndex
+      notes
+      sets {
+        id
+        setNumber
+        reps
+        weightKg
+        durationSeconds
+        distanceMeters
+      }
+    }
+  }
+}

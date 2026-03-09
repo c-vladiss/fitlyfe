@@ -1,0 +1,176 @@
+query DailyNutrition($date: String!) {
+  dailyNutrition(date: $date) {
+    id
+    date
+    totalCalories
+    proteinG
+    carbsG
+    fatG
+    waterMl
+    goals {
+      totalCalories
+      totalProteinG
+      totalCarbsG
+      totalFatG
+    }
+    mealTemplate {
+      name
+      sortOrder
+      targetCalories
+      targetProteinG
+      targetCarbsG
+      targetFatG
+      consumedCalories
+      consumedProteinG
+      consumedCarbsG
+      consumedFatG
+      entries {
+        id
+        name
+        quantityG
+        calories
+        proteinG
+        carbsG
+        fatG
+      }
+    }
+    meals {
+      id
+      mealType
+      loggedAt
+      entries {
+        id
+        foodEntry {
+          id
+          name
+          brand
+        }
+        quantityG
+        calories
+        proteinG
+        carbsG
+        fatG
+      }
+    }
+  }
+}
+
+query WeeklyNutrition($startDate: String!, $endDate: String!) {
+  weeklyNutrition(startDate: $startDate, endDate: $endDate) {
+    id
+    date
+    totalCalories
+    proteinG
+    carbsG
+    fatG
+  }
+}
+
+query UserMealTypes {
+  userMealTypes {
+    id
+    name
+    sortOrder
+    isDefault
+  }
+}
+
+mutation CreateUserMealTypes($types: [MealTypeInput!]!) {
+  createUserMealTypes(types: $types) {
+    id
+    name
+    sortOrder
+    isDefault
+  }
+}
+
+mutation AddUserMealType($name: String!, $sortOrder: Int!) {
+  addUserMealType(name: $name, sortOrder: $sortOrder) {
+    id
+    name
+    sortOrder
+    isDefault
+  }
+}
+
+mutation UpdateUserMealType($id: ID!, $name: String, $sortOrder: Int) {
+  updateUserMealType(id: $id, name: $name, sortOrder: $sortOrder) {
+    id
+    name
+    sortOrder
+    isDefault
+  }
+}
+
+mutation DeleteUserMealType($id: ID!) {
+  deleteUserMealType(id: $id)
+}
+
+mutation AddMealToDay($date: String!, $mealType: String!) {
+  addMealToDay(date: $date, mealType: $mealType) {
+    id
+    mealType
+    loggedAt
+    entries {
+      id
+    }
+  }
+}
+
+mutation RenameMealOnDay($mealId: ID!, $newName: String!) {
+  renameMealOnDay(mealId: $mealId, newName: $newName) {
+    id
+    mealType
+  }
+}
+
+mutation DeleteMealFromDay($mealId: ID!) {
+  deleteMealFromDay(mealId: $mealId)
+}
+
+mutation AddMealEntry($date: String!, $mealType: String!, $foodEntryId: ID!, $quantityG: Float!) {
+  addMealEntry(date: $date, mealType: $mealType, foodEntryId: $foodEntryId, quantityG: $quantityG) {
+    entry {
+      id
+      foodEntry {
+        id
+        name
+        brand
+      }
+      quantityG
+      calories
+      proteinG
+      carbsG
+      fatG
+    }
+    mealSummary {
+      mealId
+      mealType
+      totalCalories
+      proteinG
+      carbsG
+      fatG
+    }
+    dailySummary {
+      totalCaloriesConsumed
+      proteinGConsumed
+      carbsGConsumed
+      fatGConsumed
+    }
+  }
+}
+
+mutation UpdateMealEntry($entryId: ID!, $quantityG: Float, $foodEntryId: ID) {
+  updateMealEntry(entryId: $entryId, quantityG: $quantityG, foodEntryId: $foodEntryId) {
+    id
+    quantityG
+    calories
+    proteinG
+    carbsG
+    fatG
+  }
+}
+
+mutation DeleteMealEntry($entryId: ID!) {
+  deleteMealEntry(entryId: $entryId)
+}

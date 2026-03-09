@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
+import 'package:fitlyfe_frontend/services/graphql_service.dart';
 
 class MealInfo {
   final String name;
@@ -10,8 +11,23 @@ class MealInfo {
 }
 
 class NutritionProvider extends ChangeNotifier {
+  final GraphQLService _graphQLService;
   final List<Food> _foods = [];
-  
+
+  // Loading/error states
+  bool _isLoading = false;
+  String? _error;
+
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  // Backend data cache
+  DailyNutritionResult? _dailyNutritionData;
+  DailyNutritionResult? get dailyNutritionData => _dailyNutritionData;
+
+  NutritionProvider({GraphQLService? graphQLService})
+      : _graphQLService = graphQLService ?? GraphQLService();
+
   static final List<Food> presets = [
     Food(
       id: 'p1',
@@ -150,6 +166,8 @@ class NutritionProvider extends ChangeNotifier {
   void setSelectedDate(DateTime date) {
     _selectedDate = date;
     notifyListeners();
+    // Load nutrition data for the new date
+    loadDailyNutrition();
   }
 
   final Set<String> _favoritePresetIds = {};
@@ -181,10 +199,10 @@ class NutritionProvider extends ChangeNotifier {
   final Map<String, List<MealInfo>> _customMealsPerDay = {};
 
   List<MealInfo> _defaultMeals = [
-    MealInfo('Breakfast', '☕', 600),
-    MealInfo('Lunch', '🍲', 800),
-    MealInfo('Dinner', '🥗', 500),
-    MealInfo('Snacks', '🍎', 100),
+    MealInfo('Breakfast', '\u2615', 600),
+    MealInfo('Lunch', '\uD83C\uDF72', 800),
+    MealInfo('Dinner', '\uD83E\uDD57', 500),
+    MealInfo('Snacks', '\uD83C\uDF4E', 100),
   ];
 
   void setDefaultMeals(List<MealInfo> meals) {
@@ -277,15 +295,14 @@ class NutritionProvider extends ChangeNotifier {
       meals.add(newMeal);
       setMealsForDate(date, meals);
     }
-    
+
     // 2. Cascade rename the mealType of foods that were under the old meal name for that day
     for (int i = 0; i < _foods.length; i++) {
         var f = _foods[i];
         if (f.dateAdded.year == date.year &&
             f.dateAdded.month == date.month &&
-            f.dateAdded.day == date.day && 
+            f.dateAdded.day == date.day &&
             f.mealType == oldMealName) {
-                // we have to replace the food with a new one matching the updated mealType
                  _foods[i] = Food(
                     id: f.id,
                     name: f.name,
@@ -296,7 +313,7 @@ class NutritionProvider extends ChangeNotifier {
                     kcalPer100g: f.kcalPer100g,
                     micronutrients: f.micronutrients,
                     dateAdded: f.dateAdded,
-                    mealType: newMeal.name, // Updated
+                    mealType: newMeal.name,
                  );
             }
     }
@@ -311,7 +328,7 @@ class NutritionProvider extends ChangeNotifier {
   }
 
   List<Food> get foods => _foods;
-  
+
   List<Food> get todayFoods {
     return _foods.where((food) {
       return food.dateAdded.year == _selectedDate.year &&
@@ -321,19 +338,49 @@ class NutritionProvider extends ChangeNotifier {
   }
 
   double get todayCalories {
+    // Prefer backend data if available
+    if (_dailyNutritionData != null) {
+      return (_dailyNutritionData!.totalCalories ?? 0).toDouble();
+    }
     return todayFoods.fold(0.0, (sum, food) => sum + food.calories);
   }
 
   double get todayProtein {
+    if (_dailyNutritionData != null) {
+      return _dailyNutritionData!.proteinG ?? 0.0;
+    }
     return todayFoods.fold(0.0, (sum, food) => sum + food.protein);
   }
 
   double get todayCarbs {
+    if (_dailyNutritionData != null) {
+      return _dailyNutritionData!.carbsG ?? 0.0;
+    }
     return todayFoods.fold(0.0, (sum, food) => sum + food.carbs);
   }
 
   double get todayFats {
+    if (_dailyNutritionData != null) {
+      return _dailyNutritionData!.fatG ?? 0.0;
+    }
     return todayFoods.fold(0.0, (sum, food) => sum + food.fats);
+  }
+
+  // Daily goals from backend
+  int get dailyCalorieGoal {
+    return _dailyNutritionData?.goals.totalCalories ?? 2000;
+  }
+
+  double get dailyProteinGoal {
+    return _dailyNutritionData?.goals.totalProteinG ?? 150.0;
+  }
+
+  double get dailyCarbsGoal {
+    return _dailyNutritionData?.goals.totalCarbsG ?? 250.0;
+  }
+
+  double get dailyFatGoal {
+    return _dailyNutritionData?.goals.totalFatG ?? 65.0;
   }
 
   Map<String, double> get dailyMicronutrients => _dailyMicronutrients;
@@ -346,6 +393,134 @@ class NutritionProvider extends ChangeNotifier {
     });
     return percentages;
   }
+
+  // ── Backend Integration ─────────────────────────────────────────────────
+
+  /// Loads daily nutrition data from the backend for the selected date.
+  Future<void> loadDailyNutrition() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final dateStr = _formatDate(_selectedDate);
+      _dailyNutritionData = await _graphQLService.getDailyNutrition(dateStr);
+      _error = null;
+    } on BackendNetworkException catch (e) {
+      debugPrint('Network error loading nutrition: $e');
+      _error = 'Could not reach server';
+    } on BackendSyncException catch (e) {
+      debugPrint('Sync error loading nutrition: $e');
+      _error = 'Failed to load nutrition data';
+    } catch (e) {
+      debugPrint('Error loading nutrition: $e');
+      _error = 'An error occurred';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Adds a food entry to a meal on the backend.
+  Future<bool> addFoodToMeal({
+    required String foodEntryId,
+    required String mealType,
+    required double quantityG,
+    DateTime? date,
+  }) async {
+    final targetDate = date ?? _selectedDate;
+    final dateStr = _formatDate(targetDate);
+
+    try {
+      final result = await _graphQLService.addMealEntry(
+        date: dateStr,
+        mealType: mealType,
+        foodEntryId: foodEntryId,
+        quantityG: quantityG,
+      );
+
+      // Refresh the daily nutrition data to reflect the new entry
+      await loadDailyNutrition();
+
+      debugPrint('Added meal entry: ${result.entry.id}');
+      return true;
+    } catch (e) {
+      debugPrint('Error adding food to meal: $e');
+      _error = 'Failed to add food';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Updates a meal entry on the backend.
+  Future<bool> updateMealEntry({
+    required String entryId,
+    double? quantityG,
+    String? foodEntryId,
+  }) async {
+    try {
+      await _graphQLService.updateMealEntry(
+        entryId: entryId,
+        quantityG: quantityG,
+        foodEntryId: foodEntryId,
+      );
+
+      // Refresh the daily nutrition data
+      await loadDailyNutrition();
+      return true;
+    } catch (e) {
+      debugPrint('Error updating meal entry: $e');
+      _error = 'Failed to update entry';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Deletes a meal entry from the backend.
+  Future<bool> deleteMealEntry(String entryId) async {
+    try {
+      final success = await _graphQLService.deleteMealEntry(entryId);
+      if (success) {
+        // Refresh the daily nutrition data
+        await loadDailyNutrition();
+      }
+      return success;
+    } catch (e) {
+      debugPrint('Error deleting meal entry: $e');
+      _error = 'Failed to delete entry';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Searches the food catalog.
+  Future<FoodSearchResult?> searchFoods(String query, {int? limit}) async {
+    try {
+      return await _graphQLService.searchFoodCatalog(
+        query: query,
+        limit: limit ?? 20,
+      );
+    } catch (e) {
+      debugPrint('Error searching foods: $e');
+      return null;
+    }
+  }
+
+  /// Looks up a food by barcode.
+  Future<dynamic> lookupBarcode(String barcode) async {
+    try {
+      return await _graphQLService.getFoodByBarcode(barcode);
+    } catch (e) {
+      debugPrint('Error looking up barcode: $e');
+      return null;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  // ── Local-only methods (kept for backward compatibility) ────────────────
 
   void addFood(Food food) {
     _foods.add(food);

@@ -1,0 +1,338 @@
+type Query {
+}
+
+type Mutation {
+}
+extend type Mutation {
+    # Called by the mobile app immediately after Supabase sign-in.
+    # Upserts the user in the database and returns whether onboarding is needed.
+    syncUser: SyncUserResult!
+
+    # Called at the end of the onboarding flow to mark it as complete.
+    completeOnboarding: Boolean!
+}
+
+type SyncUserResult {
+    id: ID!
+    email: String!
+    firstName: String
+    lastName: String
+    requiresOnboarding: Boolean!
+    profile: UserProfile
+}
+extend type Query {
+    me: User
+    userGoals: UserGoals!
+}
+
+type User {
+    id: ID!
+    email: String!
+    firstName: String
+    lastName: String
+}
+
+type UserProfile {
+    heightCm: Float
+    weightKg: Float
+    dateOfBirth: String
+    goal: String
+    displayName: String
+}
+
+input UpdateUserProfileInput {
+    displayName: String
+    heightCm: Float
+    weightKg: Float
+    dateOfBirth: String
+    goal: String
+}
+
+extend type Mutation {
+    updateUserProfile(input: UpdateUserProfileInput!): UserProfile!
+    updateUserGoals(
+        dailyCalories: Int,
+        dailyProteinG: Float,
+        dailyCarbsG: Float,
+        dailyFatG: Float,
+        goalWeightKg: Float
+    ): UserGoals!
+}
+
+type UserGoals {
+    dailyCalories: Int!
+    dailyProteinG: Float!
+    dailyCarbsG: Float!
+    dailyFatG: Float!
+    goalWeightKg: Float
+}
+# ===========================================================================
+# Nutrition tracking — daily nutrition logs, meals, and meal entries
+# ===========================================================================
+
+extend type Query {
+    # Returns daily nutrition for a date (initializes from template if day is pristine)
+    dailyNutrition(date: String!): DailyNutrition!
+    weeklyNutrition(startDate: String!, endDate: String!): [DailyNutrition!]!
+    userMealTypes: [UserMealType!]!
+}
+
+extend type Mutation {
+    # -- Template management (settings screen) --
+    createUserMealTypes(types: [MealTypeInput!]!): [UserMealType!]!
+    addUserMealType(name: String!, sortOrder: Int!): UserMealType!
+    updateUserMealType(id: ID!, name: String, sortOrder: Int): UserMealType!
+    deleteUserMealType(id: ID!): Boolean!
+
+    # -- Per-day meal management --
+    addMealToDay(date: String!, mealType: String!): Meal!
+    renameMealOnDay(mealId: ID!, newName: String!): Meal!
+    deleteMealFromDay(mealId: ID!): Boolean!
+
+    # -- Meal entry CRUD --
+    addMealEntry(date: String!, mealType: String!, foodEntryId: ID!, quantityG: Float!): AddMealEntryResponse!
+    updateMealEntry(entryId: ID!, quantityG: Float, foodEntryId: ID): MealEntry!
+    deleteMealEntry(entryId: ID!): Boolean!
+}
+
+type DailyNutrition {
+    id: ID!
+    date: String!
+    # Consumed totals
+    totalCalories: Int
+    proteinG: Float
+    carbsG: Float
+    fatG: Float
+    waterMl: Int
+    # Goals (from user_goals, distributed per meal)
+    goals: DailyGoals!
+    # Meal template for this day with per-meal goals
+    mealTemplate: [MealSlot!]!
+    # Actual meals with entries
+    meals: [Meal!]!
+}
+
+type DailyGoals {
+    totalCalories: Int!
+    totalProteinG: Float!
+    totalCarbsG: Float!
+    totalFatG: Float!
+}
+
+type MealSlot {
+    name: String!
+    sortOrder: Int!
+    # Per-meal goals (total / number of meals)
+    targetCalories: Int!
+    targetProteinG: Float!
+    targetCarbsG: Float!
+    targetFatG: Float!
+    # Consumed totals for this slot (sum of entries)
+    consumedCalories: Int
+    consumedProteinG: Float
+    consumedCarbsG: Float
+    consumedFatG: Float
+    # Logged food entries (simplified for daily view)
+    entries: [MealSlotEntry!]!
+}
+
+type MealSlotEntry {
+    id: ID!
+    name: String!
+    quantityG: Float
+    calories: Int
+    proteinG: Float
+    carbsG: Float
+    fatG: Float
+}
+
+# Response for addMealEntry mutation
+type AddMealEntryResponse {
+    entry: MealEntry!
+    mealSummary: MealSummary!
+    dailySummary: DailySummary!
+}
+
+type MealSummary {
+    mealId: ID!
+    mealType: String!
+    totalCalories: Int!
+    proteinG: Float!
+    carbsG: Float!
+    fatG: Float!
+}
+
+type DailySummary {
+    totalCaloriesConsumed: Int!
+    proteinGConsumed: Float!
+    carbsGConsumed: Float!
+    fatGConsumed: Float!
+}
+
+type Meal {
+    id: ID!
+    mealType: String
+    loggedAt: String
+    entries: [MealEntry!]!
+}
+
+type MealEntry {
+    id: ID!
+    foodEntry: FoodEntry!
+    quantityG: Float
+    calories: Int
+    proteinG: Float
+    carbsG: Float
+    fatG: Float
+}
+
+type UserMealType {
+    id: ID!
+    name: String!
+    sortOrder: Int!
+    isDefault: Boolean!
+}
+
+input MealTypeInput {
+    name: String!
+    sortOrder: Int!
+}
+# ===========================================================================
+# Food Catalog — search, barcode lookup, recipe details
+# ===========================================================================
+
+extend type Query {
+    searchFoodCatalog(
+        query:  String!
+        types:  [FoodEntryType!]
+        limit:  Int
+        offset: Int
+    ): FoodSearchResult!
+
+    foodEntryById(id: ID!): FoodEntry
+    foodEntryByBarcode(barcode: String!): FoodEntry
+}
+
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
+
+enum FoodEntryType {
+    FOOD
+    PRODUCT
+    RECIPE
+}
+
+# ---------------------------------------------------------------------------
+# Search result wrapper
+# ---------------------------------------------------------------------------
+
+type FoodSearchResult {
+    items:   [FoodEntry!]!
+    total:   Int!
+    hasMore: Boolean!
+}
+
+# ---------------------------------------------------------------------------
+# Core types
+# ---------------------------------------------------------------------------
+
+type FoodEntry {
+    id:                  ID!
+    name:                String!
+    brand:               String
+    entryType:           FoodEntryType!
+    barcode:             String
+    servingSizeG:        Float
+    caloriesPer100g:     Float
+    proteinPer100g:      Float
+    carbsPer100g:        Float
+    fatPer100g:          Float
+    fiberPer100g:        Float
+    sugarPer100g:        Float
+    saturatedFatPer100g: Float
+    micronutrients:      Micronutrients
+    entrySource:         String
+    verified:            Boolean
+    recipe:              Recipe
+}
+
+type Micronutrients {
+    sodiumMg:       Float
+    potassiumMg:    Float
+    calciumMg:      Float
+    ironMg:         Float
+    magnesiumMg:    Float
+    zincMg:         Float
+    phosphorusMg:   Float
+    vitaminAMcg:    Float
+    vitaminCMg:     Float
+    vitaminDMcg:    Float
+    vitaminEMg:     Float
+    vitaminKMcg:    Float
+    vitaminB6Mg:    Float
+    vitaminB12Mcg:  Float
+    folateMcg:      Float
+    niacinMg:       Float
+    thiaminMg:      Float
+    riboflavinMg:   Float
+    cholesterolMg:  Float
+}
+
+type Recipe {
+    id:           ID!
+    servings:     Int!
+    servingLabel: String
+    prepTimeMin:  Int
+    cookTimeMin:  Int
+    instructions: String
+    ingredients:  [RecipeIngredient!]!
+}
+
+type RecipeIngredient {
+    food:          FoodEntry!
+    displayAmount: Float!
+    displayUnit:   String!
+    quantityG:     Float!
+    orderIndex:    Int!
+    notes:         String
+}
+extend type Query {
+    workoutSessions(limit: Int): [WorkoutSession!]!
+}
+
+type WorkoutSession {
+    id: ID!
+    startedAt: String
+    endedAt: String
+    durationSeconds: Int
+    workoutType: String
+    caloriesBurned: Int
+    notes: String
+    exercises: [WorkoutExercise!]!
+}
+
+type WorkoutExercise {
+    id: ID!
+    exercise: Exercise!
+    orderIndex: Int
+    notes: String
+    sets: [ExerciseSet!]!
+}
+
+type Exercise {
+    id: ID!
+    name: String!
+    description: String
+    muscleGroup: String
+    equipment: String
+}
+
+type ExerciseSet {
+    id: ID!
+    setNumber: Int
+    reps: Int
+    weightKg: Float
+    durationSeconds: Int
+    distanceMeters: Float
+}
