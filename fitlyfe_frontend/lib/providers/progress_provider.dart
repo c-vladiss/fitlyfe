@@ -42,11 +42,22 @@ class ProgressProvider extends ChangeNotifier {
     return (first - last).clamp(0.0, double.infinity);
   }
 
+  /// Average calories burned per day over the last 7 days, counting only
+  /// days that have a value. 0 when nothing has been recorded.
+  double get averageCaloriesBurned {
+    final days = last7DaysData.where((d) => d.caloriesBurned > 0).toList();
+    if (days.isEmpty) return 0;
+    return days.fold(0.0, (sum, d) => sum + d.caloriesBurned) / days.length;
+  }
+
   List<ProgressData> get last7DaysData {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Today and the 6 days before it, by calendar day
     return _progressData.where((data) {
-      final difference = now.difference(data.date).inDays;
-      return difference <= 7;
+      final day = DateTime(data.date.year, data.date.month, data.date.day);
+      final difference = today.difference(day).inDays;
+      return difference >= 0 && difference < 7;
     }).toList()..sort((a, b) => a.date.compareTo(b.date));
   }
 
@@ -55,34 +66,25 @@ class ProgressProvider extends ChangeNotifier {
   }
 
   void _initializeDefaultData() {
-    final now = DateTime.now();
-    // Progress data
-    for (int i = 6; i >= 0; i--) {
-      _progressData.add(ProgressData(
-        date: now.subtract(Duration(days: i)),
-        caloriesBurned: 300 + (double.parse(i.toString()) * 50) + (double.parse((i % 3).toString()) * 100),
-        weight: 75.0 - (double.parse(i.toString()) * 0.4),
-        workoutTime: Duration(minutes: 45 + (i * 5)),
-        steps: 4000 + (i * 1200) + (i % 2) * 500,
-      ));
-    }
+    // No invented history: progress data comes from health sync
+    // (syncHealthData) and addProgressData.
 
     // Daily Goals
     _goals.addAll([
-      _createGoal('d1', 'Daily', 'Walk 8,000 steps', 'Stay active every day', 8000, 4500),
-      _createGoal('d2', 'Daily', 'Drink 2L of water', 'Stay hydrated', 2000, 1200),
+      _createGoal('d1', 'Daily', 'Walk 8,000 steps', 'Stay active every day', 8000, 0),
+      _createGoal('d2', 'Daily', 'Drink 2L of water', 'Stay hydrated', 2000, 0),
       _createGoal('d3', 'Daily', 'Log all meals today', 'Track your nutrition', 1, 0, isBoolean: true),
     ]);
 
     // Workout Goals
     _goals.addAll([
-      _createGoal('w1', 'Workout', 'Complete 3 workouts this week', 'Consistency is key', 3, 1),
+      _createGoal('w1', 'Workout', 'Complete 3 workouts this week', 'Consistency is key', 3, 0),
       _createGoal('w2', 'Workout', 'Try a new workout type', 'Broaden your horizons', 1, 0, isBoolean: true),
-      _createGoal('w3', 'Workout', 'Lift weights twice this week', 'Strength training', 2, 1),
-      _createGoal('w4', 'Workout', 'Run 5 km total this week', 'Cardio endurance', 5, 2.5),
-      _createGoal('w5', 'Workout', 'Do 100 pushups this week', 'Upper body strength', 100, 45),
+      _createGoal('w3', 'Workout', 'Lift weights twice this week', 'Strength training', 2, 0),
+      _createGoal('w4', 'Workout', 'Run 5 km total this week', 'Cardio endurance', 5, 0),
+      _createGoal('w5', 'Workout', 'Do 100 pushups this week', 'Upper body strength', 100, 0),
       _createGoal('w6', 'Workout', 'Finish a HIIT session', 'High intensity training', 1, 0, isBoolean: true),
-      _createGoal('w7', 'Workout', 'Train for 30 days straight', 'Build a solid habit', 30, 12),
+      _createGoal('w7', 'Workout', 'Train for 30 days straight', 'Build a solid habit', 30, 0),
       _createGoal('w8', 'Workout', 'Improve plank time by 30 seconds', 'Core stability', 30, 0),
       _createGoal('w9', 'Workout', 'Add 5 kg to a lift', 'Progressive overload', 5, 0),
       _createGoal('w10', 'Workout', 'Beat last workout duration', 'Push your limits', 1, 0, isBoolean: true),
@@ -93,24 +95,24 @@ class ProgressProvider extends ChangeNotifier {
       _createGoal('h1', 'Health', 'Maintain heart rate in fat-burn zone for 15 min', 'Target fat loss', 15, 0),
       _createGoal('h2', 'Health', 'Reduce resting heart rate', 'Better cardiac health', 1, 0, isBoolean: true),
       _createGoal('h3', 'Health', 'Improve VO₂ max', 'Cardiorespiratory fitness', 1, 0, isBoolean: true),
-      _createGoal('h4', 'Health', 'Lose 2 kg in a month', 'Weight management', 2, 0.5),
+      _createGoal('h4', 'Health', 'Lose 2 kg in a month', 'Weight management', 2, 0),
       _createGoal('h5', 'Health', 'Gain lean muscle', 'Body recomposition', 1, 0, isBoolean: true),
-      _createGoal('h6', 'Health', 'Maintain calorie balance for 7 days', 'Nutritional consistency', 7, 3),
+      _createGoal('h6', 'Health', 'Maintain calorie balance for 7 days', 'Nutritional consistency', 7, 0),
       _createGoal('h7', 'Health', 'Lower body fat percentage', 'Improve body composition', 1, 0, isBoolean: true),
-      _createGoal('h8', 'Health', 'Meditate 5 days in a week', 'Mental well-being', 5, 2),
+      _createGoal('h8', 'Health', 'Meditate 5 days in a week', 'Mental well-being', 5, 0),
       _createGoal('h9', 'Health', 'Improve posture score', 'Physical alignment', 1, 0, isBoolean: true),
       _createGoal('h10', 'Health', 'Reduce stress levels', 'Overall wellness', 1, 0, isBoolean: true),
     ]);
 
     // Habit Goals
     _goals.addAll([
-      _createGoal('hb1', 'Habit', 'Log activity for 14 days in a row', 'Consistency', 14, 5),
-      _createGoal('hb2', 'Habit', 'Stretch every morning for a week', 'Flexibility', 7, 2),
-      _createGoal('hb3', 'Habit', 'Drink water upon waking', 'Hydration habit', 7, 3),
-      _createGoal('hb4', 'Habit', 'Walk daily for 30 days', 'Activity habit', 30, 10),
+      _createGoal('hb1', 'Habit', 'Log activity for 14 days in a row', 'Consistency', 14, 0),
+      _createGoal('hb2', 'Habit', 'Stretch every morning for a week', 'Flexibility', 7, 0),
+      _createGoal('hb3', 'Habit', 'Drink water upon waking', 'Hydration habit', 7, 0),
+      _createGoal('hb4', 'Habit', 'Walk daily for 30 days', 'Activity habit', 30, 0),
       _createGoal('hb5', 'Habit', 'Journal after workouts', 'Reflective practice', 1, 0, isBoolean: true),
-      _createGoal('hb6', 'Habit', 'Track calories consistently', 'Data-driven nutrition', 7, 4),
-      _createGoal('hb7', 'Habit', 'Sleep on schedule 5 days/week', 'Rest and recovery', 5, 2),
+      _createGoal('hb6', 'Habit', 'Track calories consistently', 'Data-driven nutrition', 7, 0),
+      _createGoal('hb7', 'Habit', 'Sleep on schedule 5 days/week', 'Rest and recovery', 5, 0),
     ]);
 
     // Challenge Goals
@@ -204,6 +206,7 @@ class ProgressProvider extends ChangeNotifier {
   }
 
   Goal _createGoal(String id, String category, String title, String desc, double target, double current, {bool isBoolean = false}) {
+    // Goals start at 0: progress is recorded by updateGoal/toggleGoalStatus
     return Goal(
       id: id,
       category: category,
