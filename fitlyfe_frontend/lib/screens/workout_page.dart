@@ -74,9 +74,12 @@ class _WorkoutPageState extends State<WorkoutPage> {
                           size: 32,
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          tp.translate('workout_log_book'),
-                          style: Theme.of(context).textTheme.displayMedium,
+                        Flexible(
+                          child: Text(
+                            tp.translate('workout_log_book'),
+                            style: Theme.of(context).textTheme.displayMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),

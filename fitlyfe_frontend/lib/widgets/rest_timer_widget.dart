@@ -37,11 +37,11 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
     });
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingSeconds > 0) {
-        setState(() {
-          _remainingSeconds--;
-        });
-      } else {
+      setState(() {
+        _remainingSeconds--;
+      });
+      // Finish on the tick that reaches 0:00, not one second later
+      if (_remainingSeconds <= 0) {
         _resetTimer();
         // Show completion notification
         ScaffoldMessenger.of(context).showSnackBar(

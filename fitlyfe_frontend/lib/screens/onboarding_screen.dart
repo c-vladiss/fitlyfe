@@ -791,17 +791,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         : AppTheme.accentGreen,
                   ),
                   const SizedBox(width: 16),
-                  Text(
-                    translatedLabel,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? AppTheme.backgroundColor
-                          : AppTheme.primaryText,
+                  // Expanded so long labels wrap instead of overflowing
+                  // on narrow screens or with a large system font
+                  Expanded(
+                    child: Text(
+                      translatedLabel,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? AppTheme.backgroundColor
+                            : AppTheme.primaryText,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   if (isSelected)
                     const Icon(
                       Icons.check_circle,

@@ -23,6 +23,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   late AppState _appState;
   StreamSubscription? _completionSubscription;
+  HealthProvider? _healthProvider;
+  VoidCallback? _healthListener;
   final List<String> _notificationQueue = [];
   String? _activeNotification;
 
@@ -59,15 +61,18 @@ class _MainScreenState extends State<MainScreen> {
         }
       });
 
-      // Also listen for updates (e.g. after manual refresh or authorization)
-      healthProvider.addListener(() {
+      // Also listen for updates (e.g. after manual refresh or authorization).
+      // Removed in dispose, since the provider outlives this screen.
+      _healthProvider = healthProvider;
+      _healthListener = () {
         if (healthProvider.isAuthorized) {
           progressProvider.syncHealthData(
             healthProvider.steps,
             healthProvider.activeMinutes,
           );
         }
-      });
+      };
+      healthProvider.addListener(_healthListener!);
       // Listen for goal/achievement completions
       _completionSubscription = progressProvider.completionStream.listen((
         message,
@@ -110,6 +115,9 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    if (_healthListener != null) {
+      _healthProvider?.removeListener(_healthListener!);
+    }
     _completionSubscription?.cancel();
     super.dispose();
   }

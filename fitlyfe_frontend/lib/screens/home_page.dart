@@ -473,8 +473,9 @@ class HomePage extends StatelessWidget {
   }
 
   Map<String, dynamic> _getGoalContent(String goal, TranslationProvider tp) {
-    switch (goal) {
-      case 'Lose Weight':
+    // Accept stored keys ("lose_weight") as well as labels ("Lose Weight")
+    switch (goal.trim().toLowerCase().replaceAll(' ', '_')) {
+      case 'lose_weight':
         return {
           'tips': [
             tp.translate('tip_deficit'),
@@ -499,7 +500,7 @@ class HomePage extends StatelessWidget {
             },
           ],
         };
-      case 'Build Muscle':
+      case 'build_muscle':
         return {
           'tips': [
             tp.translate('tip_overload'),
@@ -524,7 +525,7 @@ class HomePage extends StatelessWidget {
             },
           ],
         };
-      case 'Improve Endurance':
+      case 'improve_endurance':
         return {
           'tips': [
             tp.translate('tip_mileage'),
