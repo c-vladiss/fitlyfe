@@ -4,7 +4,10 @@ import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/widgets/logout_button.dart';
 
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
+import 'package:fitlyfe_frontend/l10n/l10n_extensions.dart';
+import 'package:fitlyfe_frontend/providers/locale_provider.dart';
+import 'package:fitlyfe_frontend/widgets/language_selector.dart';
 import 'package:fitlyfe_frontend/providers/workout_provider.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -13,7 +16,8 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
+    final localeProvider = Provider.of<LocaleProvider>(context);
     final user = appState.currentUser;
 
     return Scaffold(
@@ -32,7 +36,7 @@ class ProfilePage extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      tp.translate('profile'),
+                      l10n.profile,
                       style: Theme.of(context).textTheme.displayMedium,
                       textAlign: TextAlign.center,
                     ),
@@ -53,7 +57,7 @@ class ProfilePage extends StatelessWidget {
                   children: [
                     // Profile Picture
                     GestureDetector(
-                      onTap: () => _showAvatarSelection(context, appState, tp),
+                      onTap: () => _showAvatarSelection(context, appState, l10n),
                       child: Stack(
                         children: [
                           Container(
@@ -125,12 +129,12 @@ class ProfilePage extends StatelessWidget {
                             onTap: () => _showEditMetricsDialog(
                               context,
                               appState,
-                              tp,
+                              l10n,
                               'weight',
                             ),
                             child: _buildMetricCard(
                               context,
-                              tp.translate('weight').toUpperCase(),
+                              l10n.weight.toUpperCase(),
                               user.weight.toInt().toString(),
                               'kg',
                             ),
@@ -142,12 +146,12 @@ class ProfilePage extends StatelessWidget {
                             onTap: () => _showEditMetricsDialog(
                               context,
                               appState,
-                              tp,
+                              l10n,
                               'height',
                             ),
                             child: _buildMetricCard(
                               context,
-                              tp.translate('height').toUpperCase(),
+                              l10n.height.toUpperCase(),
                               user.height.toInt().toString(),
                               'cm',
                             ),
@@ -159,12 +163,12 @@ class ProfilePage extends StatelessWidget {
                             onTap: () => _showEditMetricsDialog(
                               context,
                               appState,
-                              tp,
+                              l10n,
                               'age',
                             ),
                             child: _buildMetricCard(
                               context,
-                              tp.translate('age').toUpperCase(),
+                              l10n.age.toUpperCase(),
                               user.age.toString(),
                               'yo',
                             ),
@@ -179,7 +183,7 @@ class ProfilePage extends StatelessWidget {
 
               // Primary Goal Selector
               GestureDetector(
-                onTap: () => _showEditGoalDialog(context, appState, tp),
+                onTap: () => _showEditGoalDialog(context, appState, l10n),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -211,7 +215,7 @@ class ProfilePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              tp.translate('primary_goal'),
+                              l10n.primaryGoal,
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     letterSpacing: 1.2,
@@ -221,9 +225,7 @@ class ProfilePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              tp.translate(
-                                user.goal.toLowerCase().replaceAll(' ', '_'),
-                              ),
+                              l10n.goalLabel(user.goal),
                               style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
@@ -244,22 +246,22 @@ class ProfilePage extends StatelessWidget {
               // Account Section
               _buildSectionHeader(
                 context,
-                tp.translate('account').toUpperCase(),
+                l10n.account.toUpperCase(),
               ),
               const SizedBox(height: 16),
               _buildSettingItem(
                 context,
                 icon: Icons.person_outline,
-                title: tp.translate('personal_details'),
-                subtitle: tp.translate('name_email'),
-                onTap: () => _showEditProfileDialog(context, appState, tp),
+                title: l10n.personalDetails,
+                subtitle: l10n.nameEmail,
+                onTap: () => _showEditProfileDialog(context, appState, l10n),
               ),
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
                 icon: Icons.security,
-                title: tp.translate('privacy_security'),
-                subtitle: tp.translate('password_2fa'),
+                title: l10n.privacySecurity,
+                subtitle: l10n.password2fa,
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -273,14 +275,14 @@ class ProfilePage extends StatelessWidget {
               // Preferences Section
               _buildSectionHeader(
                 context,
-                tp.translate('preferences').toUpperCase(),
+                l10n.preferences.toUpperCase(),
               ),
               const SizedBox(height: 16),
               _buildSettingItem(
                 context,
                 icon: Icons.notifications_outlined,
-                title: tp.translate('notifications'),
-                subtitle: tp.translate('push_email'),
+                title: l10n.notifications,
+                subtitle: l10n.pushEmail,
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -292,10 +294,20 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
+                icon: Icons.language,
+                title: l10n.language,
+                subtitle: localeProvider.locale == null
+                    ? l10n.languageSystemDefault
+                    : LocaleProvider.nativeName(localeProvider.locale!),
+                onTap: () => _showLanguageSheet(context, l10n),
+              ),
+              const SizedBox(height: 12),
+              _buildSettingItem(
+                context,
                 icon: Icons.palette_outlined,
-                title: tp.translate('appearance'),
-                subtitle: tp.translate('color_theme'),
-                onTap: () => _showAppearanceDialog(context, appState, tp),
+                title: l10n.appearance,
+                subtitle: l10n.colorTheme,
+                onTap: () => _showAppearanceDialog(context, appState, l10n),
               ),
               const SizedBox(height: 12),
               const LogoutButton(),
@@ -306,10 +318,32 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  void _showLanguageSheet(BuildContext context, AppLocalizations l10n) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.backgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.language, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            const LanguageSelector(),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAvatarSelection(
     BuildContext context,
     AppState appState,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     final avatars = [
       'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
@@ -374,7 +408,7 @@ class ProfilePage extends StatelessWidget {
   void _showEditProfileDialog(
     BuildContext context,
     AppState appState,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     final nameController = TextEditingController(
       text: appState.currentUser.name,
@@ -387,13 +421,13 @@ class ProfilePage extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.cardBackground,
-        title: Text(tp.translate('personal_details')),
+        title: Text(l10n.personalDetails),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: InputDecoration(labelText: tp.translate('your_name')),
+              decoration: InputDecoration(labelText: l10n.yourName),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -406,7 +440,7 @@ class ProfilePage extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              tp.translate('cancel'),
+              l10n.cancel,
               style: const TextStyle(color: AppTheme.secondaryText),
             ),
           ),
@@ -418,7 +452,7 @@ class ProfilePage extends StatelessWidget {
               );
               Navigator.pop(context);
             },
-            child: Text(tp.translate('add')),
+            child: Text(l10n.add),
           ),
         ],
       ),
@@ -428,7 +462,7 @@ class ProfilePage extends StatelessWidget {
   void _showEditMetricsDialog(
     BuildContext context,
     AppState appState,
-    TranslationProvider tp,
+    AppLocalizations l10n,
     String type,
   ) {
     final controller = TextEditingController(
@@ -460,7 +494,7 @@ class ProfilePage extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              tp.translate('cancel'),
+              l10n.cancel,
               style: const TextStyle(color: AppTheme.secondaryText),
             ),
           ),
@@ -577,7 +611,7 @@ class ProfilePage extends StatelessWidget {
   void _showEditGoalDialog(
     BuildContext context,
     AppState appState,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     final goals = [
       'lose_weight',
@@ -599,7 +633,7 @@ class ProfilePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              tp.translate('select_goal'),
+              l10n.selectGoal,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 24),
@@ -620,7 +654,7 @@ class ProfilePage extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '${tp.translate('goal_updated_to')} ${tp.translate(goal)}',
+                        l10n.goalUpdatedTo(l10n.goalLabel(goal)),
                       ),
                       backgroundColor: AppTheme.accentGreen,
                     ),
@@ -651,7 +685,7 @@ class ProfilePage extends StatelessWidget {
                       ),
                       const SizedBox(width: 16),
                       Text(
-                        tp.translate(goal.toLowerCase().replaceAll(' ', '_')),
+                        l10n.goalLabel(goal),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: isSelected
@@ -675,7 +709,7 @@ class ProfilePage extends StatelessWidget {
   void _showAppearanceDialog(
     BuildContext context,
     AppState appState,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     final colors = [
       {'name': 'Green', 'color': AppTheme.accentGreen},
@@ -698,7 +732,7 @@ class ProfilePage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              tp.translate('choose_theme'),
+              l10n.chooseTheme,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 24),

@@ -1,8 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 
 class AIAssistantPage extends StatefulWidget {
   const AIAssistantPage({super.key});
@@ -20,9 +19,9 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
-      final tp = Provider.of<TranslationProvider>(context);
+      final l10n = AppLocalizations.of(context);
       _messages = [
-        ChatMessage(text: tp.translate('ai_coach_intro'), isUser: false),
+        ChatMessage(text: l10n.aiCoachIntro, isUser: false),
       ];
       _initialized = true;
     }
@@ -66,7 +65,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -83,7 +82,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    tp.translate('ai_assistant'),
+                    l10n.aiAssistant,
                     style: Theme.of(context).textTheme.displayMedium,
                   ),
                 ],
@@ -109,21 +108,21 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
                 children: [
                   Expanded(
                     child: _buildTopicButton(
-                      tp.translate('body_type'),
+                      l10n.bodyType,
                       'body_type',
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildTopicButton(
-                      tp.translate('consistency_tips'),
+                      l10n.consistencyTips,
                       'consistency_tips',
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildTopicButton(
-                      tp.translate('daily_quote'),
+                      l10n.dailyQuote,
                       'daily_quote',
                     ),
                   ),
@@ -156,7 +155,7 @@ class _AIAssistantPageState extends State<AIAssistantPage> {
                             controller: _messageController,
                             style: const TextStyle(color: AppTheme.primaryText),
                             decoration: InputDecoration(
-                              hintText: tp.translate('ask_anything'),
+                              hintText: l10n.askAnything,
                               hintStyle: TextStyle(
                                 color: AppTheme.secondaryText.withValues(
                                   alpha: 0.5,

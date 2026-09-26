@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/widgets/micronutrient_card.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
@@ -21,7 +21,7 @@ class NutritionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     final nutritionProvider = Provider.of<NutritionProvider>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     final user = appState.currentUser;
 
     final caloriesConsumed = nutritionProvider.todayCalories;
@@ -49,7 +49,7 @@ class NutritionPage extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    tp.translate('nutrition'),
+                    l10n.nutrition,
                     style: Theme.of(context).textTheme.displayMedium,
                   ),
                 ],
@@ -185,7 +185,7 @@ class NutritionPage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildReorderableMeals(context, nutritionProvider, tp),
+                    _buildReorderableMeals(context, nutritionProvider, l10n),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: TextButton.icon(
@@ -216,13 +216,13 @@ class NutritionPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    tp.translate('micronutrients'),
+                    l10n.micronutrients,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   ElevatedButton.icon(
-                    onPressed: () => _showAddVitaminDialog(context, tp),
+                    onPressed: () => _showAddVitaminDialog(context, l10n),
                     icon: const Icon(Icons.medication, size: 20),
-                    label: Text(tp.translate('add_vitamin')),
+                    label: Text(l10n.addVitamin),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accentPurple,
                       foregroundColor: AppTheme.primaryText,
@@ -250,7 +250,7 @@ class NutritionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildReorderableMeals(BuildContext context, NutritionProvider provider, TranslationProvider tp) {
+  Widget _buildReorderableMeals(BuildContext context, NutritionProvider provider, AppLocalizations l10n) {
     final meals = provider.getMealsForDate(provider.selectedDate);
 
     // Calculate adjusted goals based on calorie carry-over overages
@@ -305,7 +305,7 @@ class NutritionPage extends StatelessWidget {
                   emojiStr: meal.emoji,
                   goalCals: adjustedGoal,
                   foods: provider.todayFoods.where((f) => f.mealType == meal.name).toList(),
-                  onAddTap: () => _showAddFoodDialog(context, tp, mealType: meal.name),
+                  onAddTap: () => _showAddFoodDialog(context, l10n, mealType: meal.name),
                   onMealTap: () {
                     Navigator.push(
                       context,
@@ -369,7 +369,7 @@ class NutritionPage extends StatelessWidget {
     );
   }
 
-  void _showAddFoodDialog(BuildContext context, TranslationProvider tp, {String? mealType}) {
+  void _showAddFoodDialog(BuildContext context, AppLocalizations l10n, {String? mealType}) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -378,7 +378,7 @@ class NutritionPage extends StatelessWidget {
     );
   }
 
-  void _showAddVitaminDialog(BuildContext context, TranslationProvider tp) {
+  void _showAddVitaminDialog(BuildContext context, AppLocalizations l10n) {
     String selectedType = NutritionProvider.micronutrientRDIs.keys.first;
     final amountController = TextEditingController();
 
@@ -390,7 +390,7 @@ class NutritionPage extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          title: Text(tp.translate('add_vitamin')),
+          title: Text(l10n.addVitamin),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -398,7 +398,7 @@ class NutritionPage extends StatelessWidget {
                 initialValue: selectedType,
                 dropdownColor: AppTheme.cardBackground,
                 decoration: InputDecoration(
-                  labelText: tp.translate('vitamin_type'),
+                  labelText: l10n.vitaminType,
                   labelStyle: const TextStyle(color: AppTheme.secondaryText),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -423,7 +423,7 @@ class NutritionPage extends StatelessWidget {
               TextField(
                 controller: amountController,
                 decoration: InputDecoration(
-                  labelText: tp.translate('amount'),
+                  labelText: l10n.amount,
                   labelStyle: const TextStyle(color: AppTheme.secondaryText),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -448,7 +448,7 @@ class NutritionPage extends StatelessWidget {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                tp.translate('cancel'),
+                l10n.cancel,
                 style: const TextStyle(color: AppTheme.secondaryText),
               ),
             ),
@@ -463,7 +463,7 @@ class NutritionPage extends StatelessWidget {
                 }
                 Navigator.pop(context);
               },
-              child: Text(tp.translate('add')),
+              child: Text(l10n.add),
             ),
           ],
         ),
@@ -666,7 +666,7 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
     );
   }
 
-  Widget _buildEmptyState(TranslationProvider tp) {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     String categoryLabel = _selectedCategory.toLowerCase();
     String emptyMessage = 'The food you are searching is not in the database.';
     bool showManualButton = false;
@@ -836,7 +836,7 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -881,7 +881,7 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
           ),
         ),
         title: Text(
-          widget.mealType ?? tp.translate('add_food'),
+          widget.mealType ?? l10n.addFood,
           style: const TextStyle(color: AppTheme.primaryText, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
@@ -974,7 +974,7 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
             child: _showManualMenu
                 ? _buildManualMenu()
                 : (_filteredPresets.isEmpty)
-                    ? _buildEmptyState(tp)
+                    ? _buildEmptyState(l10n)
                     : ListView.separated(
                         itemCount: _filteredPresets.length,
                         separatorBuilder: (context, index) => Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),
@@ -1099,7 +1099,7 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
 
   @override
   Widget build(BuildContext context) {
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     final caloriesRemaining = (widget.caloriesGoal - widget.caloriesConsumed)
         .clamp(0.0, widget.caloriesGoal);
     final proteinCals = widget.protein * 4;
@@ -1206,11 +1206,11 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
                 const SizedBox(height: 2),
                 Text(
                   _touchedIndex == 0
-                      ? tp.translate('protein')
+                      ? l10n.protein
                       : _touchedIndex == 1
-                      ? tp.translate('carbs')
+                      ? l10n.carbs
                       : _touchedIndex == 2
-                      ? tp.translate('fats')
+                      ? l10n.fats
                       : ((widget.caloriesConsumed > widget.caloriesGoal) ? 'Over Goal' : 'Remaining'),
                   style: TextStyle(
                     color: (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal))

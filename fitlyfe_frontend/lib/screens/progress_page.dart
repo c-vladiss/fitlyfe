@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/providers/progress_provider.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/widgets/progress_chart.dart';
@@ -59,7 +59,7 @@ class _ProgressPageState extends State<ProgressPage> {
   @override
   Widget build(BuildContext context) {
     final progressProvider = Provider.of<ProgressProvider>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     final last7Days = progressProvider.last7DaysData;
 
     return Scaffold(
@@ -75,7 +75,7 @@ class _ProgressPageState extends State<ProgressPage> {
                   Icon(Icons.bar_chart, color: AppTheme.accentGreen, size: 28),
                   const SizedBox(width: 12),
                   Text(
-                    tp.translate('progress'),
+                    l10n.progress,
                     style: Theme.of(context).textTheme.displayMedium,
                   ),
                 ],
@@ -102,7 +102,7 @@ class _ProgressPageState extends State<ProgressPage> {
                   children: [
                     _buildChartSection(
                       context,
-                      '${tp.translate('calories_burnt')} (${tp.translate('last_7_days')})',
+                      '${l10n.caloriesBurnt} (${l10n.last7Days})',
                       AppTheme.accentGreen,
                       'kcal',
                       (d) => d.caloriesBurned,
@@ -110,7 +110,7 @@ class _ProgressPageState extends State<ProgressPage> {
                     ),
                     _buildChartSection(
                       context,
-                      '${tp.translate('steps_count')} (${tp.translate('last_7_days')})',
+                      '${l10n.stepsCount} (${l10n.last7Days})',
                       AppTheme.accentBlue,
                       'steps',
                       (d) => (d.steps ?? 0).toDouble(),
@@ -161,27 +161,27 @@ class _ProgressPageState extends State<ProgressPage> {
                 children: [
                   _buildStatCard(
                     context,
-                    tp.translate('total_workout'),
+                    l10n.totalWorkout,
                     progressProvider.totalWorkoutHours.toStringAsFixed(1),
-                    tp.translate('hrs'),
+                    l10n.hrs,
                   ),
                   _buildStatCard(
                     context,
-                    tp.translate('total_steps'),
+                    l10n.totalSteps,
                     (progressProvider.totalSteps / 1000).toStringAsFixed(1),
-                    tp.translate('k'),
+                    l10n.k,
                   ),
                   _buildStatCard(
                     context,
-                    tp.translate('weight_lost'),
+                    l10n.weightLost,
                     progressProvider.totalWeightLost.toStringAsFixed(1),
-                    tp.translate('kg'),
+                    l10n.kg,
                   ),
                   _buildStatCard(
                     context,
-                    tp.translate('avg_calories'),
+                    l10n.avgCalories,
                     (progressProvider.totalSteps > 0 ? 450 : 0).toString(),
-                    tp.translate('kcal'),
+                    l10n.kcal,
                   ),
                 ],
               ),
@@ -190,9 +190,9 @@ class _ProgressPageState extends State<ProgressPage> {
               _buildActionCard(
                 context,
                 icon: Icons.flag,
-                title: tp.translate('goals'),
+                title: l10n.goals,
                 subtitle:
-                    '${progressProvider.goals.where((g) => g.isCompleted).length}/${progressProvider.goals.length} ${tp.translate('completed')}',
+                    '${progressProvider.goals.where((g) => g.isCompleted).length}/${progressProvider.goals.length} ${l10n.completed}',
                 iconColor: AppTheme.accentOrange,
                 onTap: () {
                   Navigator.push(
@@ -207,9 +207,9 @@ class _ProgressPageState extends State<ProgressPage> {
               _buildActionCard(
                 context,
                 icon: Icons.emoji_events,
-                title: tp.translate('achievements'),
+                title: l10n.achievements,
                 subtitle:
-                    '${progressProvider.achievements.where((a) => a.isUnlocked).length} ${tp.translate('unlocked')}',
+                    '${progressProvider.achievements.where((a) => a.isUnlocked).length} ${l10n.unlocked}',
                 iconColor: AppTheme.accentYellow,
                 onTap: () {
                   Navigator.push(
@@ -226,8 +226,8 @@ class _ProgressPageState extends State<ProgressPage> {
               _buildActionCard(
                 context,
                 icon: Icons.lightbulb,
-                title: tp.translate('tips_to_improve'),
-                subtitle: tp.translate('ask_ai'),
+                title: l10n.tipsToImprove,
+                subtitle: l10n.askAi,
                 iconColor: AppTheme.accentGreen,
                 isHighlighted: true,
                 onTap: () {
@@ -421,10 +421,7 @@ class _ChartSectionState extends State<_ChartSection> {
                     Text(
                       _hoveredData != null
                           ? DateFormat('EEEE, MMM d').format(_hoveredData!.date)
-                          : Provider.of<TranslationProvider>(
-                              context,
-                              listen: false,
-                            ).translate('last_7_days'),
+                          : AppLocalizations.of(context).last7Days,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.secondaryText.withValues(alpha: 0.7),
                       ),
