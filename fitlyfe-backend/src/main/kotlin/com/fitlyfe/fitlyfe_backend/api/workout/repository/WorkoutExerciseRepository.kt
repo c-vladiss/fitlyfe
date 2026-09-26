@@ -7,4 +7,5 @@ import java.util.UUID
 
 interface WorkoutExerciseRepository : JpaRepository<WorkoutExerciseEntity, UUID> {
     fun findBySessionOrderByOrderIndexAsc(session: WorkoutSessionEntity): List<WorkoutExerciseEntity>
+    fun findBySessionIdInOrderByOrderIndexAsc(sessionIds: Collection<UUID>): List<WorkoutExerciseEntity>
 }

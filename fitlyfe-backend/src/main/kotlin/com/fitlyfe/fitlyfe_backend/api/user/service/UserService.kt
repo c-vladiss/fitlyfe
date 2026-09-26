@@ -107,8 +107,17 @@ class UserService(
         return userProfileRepository.findByUserId(userId)
     }
 
-    fun getOrCreate(supabaseId: String, email: String): UserEntity {
-        val (user, _, _) = syncUser(UUID.fromString(supabaseId), email)
+    /**
+     * Resolves the user behind an authenticated request.
+     *
+     * This is a plain lookup for existing users, so ordinary queries don't
+     * write to the database. The row is only created when a request arrives
+     * before the client has called syncUser.
+     */
+    fun resolveUser(supabaseId: UUID, email: String?): UserEntity {
+        userRepository.findBySupabaseId(supabaseId)?.let { return it }
+        requireNotNull(email) { "email claim missing from JWT" }
+        val (user, _, _) = syncUser(supabaseId, email)
         return user
     }
 

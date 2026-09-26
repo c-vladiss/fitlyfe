@@ -1,6 +1,7 @@
 package com.fitlyfe.fitlyfe_backend.api.workout.service
 
 import com.fitlyfe.fitlyfe_backend.api.user.entity.UserEntity
+import com.fitlyfe.fitlyfe_backend.api.workout.entity.ExerciseSetEntity
 import com.fitlyfe.fitlyfe_backend.api.workout.entity.WorkoutExerciseEntity
 import com.fitlyfe.fitlyfe_backend.api.workout.entity.WorkoutSessionEntity
 import com.fitlyfe.fitlyfe_backend.api.workout.repository.ExerciseSetRepository
@@ -20,10 +21,17 @@ class WorkoutService(
         return workoutSessionRepository.findByUserOrderByStartedAtDesc(user, pageable)
     }
 
-    fun getExercisesForSession(session: WorkoutSessionEntity): List<WorkoutExerciseEntity> {
-        return workoutExerciseRepository.findBySessionOrderByOrderIndexAsc(session)
+    /** Loads the exercises of several sessions in one query, returned in the order of [sessions]. */
+    fun getExercisesForSessions(sessions: List<WorkoutSessionEntity>): List<List<WorkoutExerciseEntity>> {
+        val bySession = workoutExerciseRepository.findBySessionIdInOrderByOrderIndexAsc(sessions.map { it.id })
+            .groupBy { it.session.id }
+        return sessions.map { bySession[it.id].orEmpty() }
     }
 
-    fun getSetsForExercise(workoutExercise: WorkoutExerciseEntity) =
-        exerciseSetRepository.findByWorkoutExerciseOrderBySetNumberAsc(workoutExercise)
+    /** Loads the sets of several workout exercises in one query, returned in the order of [exercises]. */
+    fun getSetsForExercises(exercises: List<WorkoutExerciseEntity>): List<List<ExerciseSetEntity>> {
+        val byExercise = exerciseSetRepository.findByWorkoutExerciseIdInOrderBySetNumberAsc(exercises.map { it.id })
+            .groupBy { it.workoutExercise.id }
+        return exercises.map { byExercise[it.id].orEmpty() }
+    }
 }
