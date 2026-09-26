@@ -134,7 +134,7 @@ class BatchLoadingTest : AbstractIntegrationTest() {
     // ── Workouts ────────────────────────────────────────────────────────
 
     private val sessionsQuery = """
-        { workoutSessions(limit: 50) { id exercises { orderIndex sets { setNumber reps } } } }
+        { workoutSessions(limit: 50) { id startedAt exercises { orderIndex exercise { name } sets { setNumber reps } } } }
     """.trimIndent()
 
     private fun seedWorkouts(supabaseId: UUID, sessionCount: Int) {

@@ -8,4 +8,5 @@ import java.util.UUID
 
 interface WorkoutSessionRepository : JpaRepository<WorkoutSessionEntity, UUID> {
     fun findByUserOrderByStartedAtDesc(user: UserEntity, pageable: Pageable): List<WorkoutSessionEntity>
+    fun findByUserAndClientId(user: UserEntity, clientId: UUID): WorkoutSessionEntity?
 }

@@ -17,12 +17,15 @@ class GraphQLTestClient(
         document: String,
         variables: Map<String, Any?> = emptyMap(),
         asUser: UUID? = null,
+        operationName: String? = null,
     ): JsonNode {
         val headers = HttpHeaders().apply {
             contentType = MediaType.APPLICATION_JSON
             asUser?.let { setBearerAuth(TestSecurityConfig.testToken(it)) }
         }
-        val body = objectMapper.writeValueAsString(mapOf("query" to document, "variables" to variables))
+        val body = objectMapper.writeValueAsString(
+            mapOf("query" to document, "variables" to variables, "operationName" to operationName)
+        )
         val response = restTemplate.postForEntity("/graphql", HttpEntity(body, headers), String::class.java)
         return objectMapper.readTree(response.body)
     }
@@ -32,8 +35,9 @@ class GraphQLTestClient(
         document: String,
         variables: Map<String, Any?> = emptyMap(),
         asUser: UUID? = null,
+        operationName: String? = null,
     ): JsonNode {
-        val result = execute(document, variables, asUser)
+        val result = execute(document, variables, asUser, operationName)
         val errors = result.path("errors")
         check(errors.isMissingNode || errors.isEmpty) { "Unexpected GraphQL errors: $errors" }
         return result.path("data")

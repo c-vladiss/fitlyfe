@@ -18,12 +18,7 @@ class Set {
   final double? weight; // in kg
   final Duration? restTime;
 
-  Set({
-    required this.id,
-    required this.reps,
-    this.weight,
-    this.restTime,
-  });
+  Set({required this.id, required this.reps, this.weight, this.restTime});
 }
 
 class WorkoutRoutine {
@@ -51,6 +46,10 @@ class WorkoutSession {
   final List<Exercise> exercises;
   final double? caloriesBurned;
 
+  /// False while a finished session is only stored on this device because
+  /// saving it to the backend failed. It is retried on the next sync.
+  final bool isSynced;
+
   WorkoutSession({
     required this.id,
     required this.routineId,
@@ -59,7 +58,11 @@ class WorkoutSession {
     this.endTime,
     required this.exercises,
     this.caloriesBurned,
+    this.isSynced = true,
   });
+
+  /// Number of sets logged across all exercises.
+  int get totalSets => exercises.fold(0, (sum, e) => sum + e.sets.length);
 
   Duration get duration {
     if (endTime != null) {

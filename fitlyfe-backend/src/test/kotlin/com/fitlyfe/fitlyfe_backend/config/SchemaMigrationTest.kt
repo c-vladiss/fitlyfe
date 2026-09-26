@@ -26,7 +26,7 @@ class SchemaMigrationTest : AbstractIntegrationTest() {
         val info = flyway.info()
         assertTrue(info.pending().isEmpty(), "Pending migrations: ${info.pending().map { it.version }}")
         assertTrue(info.applied().all { it.state.isApplied && !it.state.isFailed })
-        assertEquals("7", info.current().version.version)
+        assertEquals("8", info.current().version.version)
     }
 
     @Test
