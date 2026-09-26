@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:fitlyfe_frontend/graphql/schema.graphql.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
 import 'package:fitlyfe_frontend/services/graphql_service.dart';
 
@@ -12,7 +13,6 @@ class MealInfo {
 
 class NutritionProvider extends ChangeNotifier {
   final GraphQLService _graphQLService;
-  final List<Food> _foods = [];
 
   // Loading/error states
   bool _isLoading = false;
@@ -28,118 +28,6 @@ class NutritionProvider extends ChangeNotifier {
   NutritionProvider({GraphQLService? graphQLService})
       : _graphQLService = graphQLService ?? GraphQLService();
 
-  static final List<Food> presets = [
-    Food(
-      id: 'p1',
-      name: 'Chicken Breast',
-      calories: 165,
-      protein: 31.0,
-      carbs: 0.0,
-      fats: 3.6,
-      kcalPer100g: 165,
-      micronutrients: {'iron': 1.0, 'magnesium': 29.0},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p2',
-      name: 'Brown Rice (Cooked)',
-      calories: 111,
-      protein: 2.6,
-      carbs: 23.0,
-      fats: 0.9,
-      kcalPer100g: 111,
-      micronutrients: {'magnesium': 43.0},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p3',
-      name: 'Avocado',
-      calories: 160,
-      protein: 2.0,
-      carbs: 8.5,
-      fats: 14.7,
-      kcalPer100g: 160,
-      micronutrients: {'vitamin_c': 10.0, 'magnesium': 29.0},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p4',
-      name: 'Oatmeal',
-      calories: 389,
-      protein: 16.9,
-      carbs: 66.3,
-      fats: 6.9,
-      kcalPer100g: 389,
-      micronutrients: {'iron': 4.7, 'magnesium': 177.0},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p5',
-      name: 'Boiled Egg (Large)',
-      calories: 155,
-      protein: 13.0,
-      carbs: 1.1,
-      fats: 11.0,
-      kcalPer100g: 155,
-      micronutrients: {'vitamin_a': 520.0, 'iron': 1.2},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p6',
-      name: 'Salmon Fillet',
-      calories: 208,
-      protein: 20.0,
-      carbs: 0.0,
-      fats: 13.0,
-      kcalPer100g: 208,
-      micronutrients: {'vitamin_d': 11.0, 'magnesium': 27.0},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p7',
-      name: 'Greek Yogurt',
-      calories: 59,
-      protein: 10.0,
-      carbs: 3.6,
-      fats: 0.4,
-      kcalPer100g: 59,
-      micronutrients: {'calcium': 110.0},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p8',
-      name: 'Banana',
-      calories: 89,
-      protein: 1.1,
-      carbs: 22.8,
-      fats: 0.3,
-      kcalPer100g: 89,
-      micronutrients: {'vitamin_c': 8.7, 'magnesium': 27.0},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p9',
-      name: 'Spinach (Raw)',
-      calories: 23,
-      protein: 2.9,
-      carbs: 3.6,
-      fats: 0.4,
-      kcalPer100g: 23,
-      micronutrients: {'vitamin_a': 9377.0, 'vitamin_c': 28.1, 'iron': 2.7},
-      dateAdded: DateTime.now(),
-    ),
-    Food(
-      id: 'p10',
-      name: 'Almonds',
-      calories: 579,
-      protein: 21.0,
-      carbs: 22.0,
-      fats: 50.0,
-      kcalPer100g: 579,
-      micronutrients: {'calcium': 264.0, 'magnesium': 270.0},
-      dateAdded: DateTime.now(),
-    ),
-  ];
 
   static const Map<String, double> micronutrientRDIs = {
     'vitamin_a': 900.0,    // mcg
@@ -170,30 +58,30 @@ class NutritionProvider extends ChangeNotifier {
     loadDailyNutrition();
   }
 
-  final Set<String> _favoritePresetIds = {};
+  // Catalog foods the user starred or logged, for the Favorites / Recent tabs.
+  // Kept in memory for the session.
+  final Map<String, Food> _favoriteFoods = {};
+  final List<Food> _recentFoods = [];
 
-  Set<String> get favoritePresetIds => _favoritePresetIds;
+  List<Food> get favoriteFoods => _favoriteFoods.values.toList();
 
-  void toggleFavoritePreset(String id) {
-    if (_favoritePresetIds.contains(id)) {
-      _favoritePresetIds.remove(id);
-    } else {
-      _favoritePresetIds.add(id);
+  /// Most recently logged first, one entry per catalog food.
+  List<Food> get recentFoods => List.unmodifiable(_recentFoods);
+
+  bool isFavorite(String foodId) => _favoriteFoods.containsKey(foodId);
+
+  void toggleFavorite(Food food) {
+    if (_favoriteFoods.remove(food.id) == null) {
+      _favoriteFoods[food.id] = food;
     }
     notifyListeners();
   }
 
-  final Set<String> _favoriteRecipeIds = {};
-
-  Set<String> get favoriteRecipeIds => _favoriteRecipeIds;
-
-  void toggleFavoriteRecipe(String id) {
-    if (_favoriteRecipeIds.contains(id)) {
-      _favoriteRecipeIds.remove(id);
-    } else {
-      _favoriteRecipeIds.add(id);
-    }
-    notifyListeners();
+  void _rememberRecent(Food food) {
+    _recentFoods
+      ..removeWhere((f) => f.id == food.id)
+      ..insert(0, food);
+    if (_recentFoods.length > 30) _recentFoods.removeLast();
   }
 
   final Map<String, List<MealInfo>> _customMealsPerDay = {};
@@ -261,14 +149,6 @@ class NutritionProvider extends ChangeNotifier {
         meals.add(newMeal);
       }
     }
-
-    // Cascade rename the mealType of foods that were under the old meal name for ALL days
-    for (int i = 0; i < _foods.length; i++) {
-        var f = _foods[i];
-        if (f.mealType == oldMealName) {
-           _foods[i] = f.copyWith(mealType: newMeal.name);
-        }
-    }
     notifyListeners();
   }
 
@@ -296,27 +176,6 @@ class NutritionProvider extends ChangeNotifier {
       setMealsForDate(date, meals);
     }
 
-    // 2. Cascade rename the mealType of foods that were under the old meal name for that day
-    for (int i = 0; i < _foods.length; i++) {
-        var f = _foods[i];
-        if (f.dateAdded.year == date.year &&
-            f.dateAdded.month == date.month &&
-            f.dateAdded.day == date.day &&
-            f.mealType == oldMealName) {
-                 _foods[i] = Food(
-                    id: f.id,
-                    name: f.name,
-                    calories: f.calories,
-                    protein: f.protein,
-                    carbs: f.carbs,
-                    fats: f.fats,
-                    kcalPer100g: f.kcalPer100g,
-                    micronutrients: f.micronutrients,
-                    dateAdded: f.dateAdded,
-                    mealType: newMeal.name,
-                 );
-            }
-    }
     notifyListeners();
   }
 
@@ -327,44 +186,36 @@ class NutritionProvider extends ChangeNotifier {
     setMealsForDate(date, meals);
   }
 
-  List<Food> get foods => _foods;
-
+  /// Food logged on the selected day, from the backend. Each item's [Food.id]
+  /// is the meal entry id and [Food.mealType] the meal it was logged in.
   List<Food> get todayFoods {
-    return _foods.where((food) {
-      return food.dateAdded.year == _selectedDate.year &&
-          food.dateAdded.month == _selectedDate.month &&
-          food.dateAdded.day == _selectedDate.day;
-    }).toList();
+    final day = _dailyNutritionData;
+    if (day == null) return const [];
+    return [
+      for (final meal in day.meals)
+        for (final entry in meal.entries)
+          Food(
+            id: entry.id,
+            name: entry.foodEntry.name,
+            calories: (entry.calories ?? 0).toDouble(),
+            protein: entry.proteinG ?? 0,
+            carbs: entry.carbsG ?? 0,
+            fats: entry.fatG ?? 0,
+            dateAdded: _selectedDate,
+            mealType: meal.mealType,
+            servingSizeG: entry.quantityG,
+          ),
+    ];
   }
 
-  double get todayCalories {
-    // Prefer backend data if available
-    if (_dailyNutritionData != null) {
-      return (_dailyNutritionData!.totalCalories ?? 0).toDouble();
-    }
-    return todayFoods.fold(0.0, (sum, food) => sum + food.calories);
-  }
+  double get todayCalories =>
+      (_dailyNutritionData?.totalCalories ?? 0).toDouble();
 
-  double get todayProtein {
-    if (_dailyNutritionData != null) {
-      return _dailyNutritionData!.proteinG ?? 0.0;
-    }
-    return todayFoods.fold(0.0, (sum, food) => sum + food.protein);
-  }
+  double get todayProtein => _dailyNutritionData?.proteinG ?? 0.0;
 
-  double get todayCarbs {
-    if (_dailyNutritionData != null) {
-      return _dailyNutritionData!.carbsG ?? 0.0;
-    }
-    return todayFoods.fold(0.0, (sum, food) => sum + food.carbs);
-  }
+  double get todayCarbs => _dailyNutritionData?.carbsG ?? 0.0;
 
-  double get todayFats {
-    if (_dailyNutritionData != null) {
-      return _dailyNutritionData!.fatG ?? 0.0;
-    }
-    return todayFoods.fold(0.0, (sum, food) => sum + food.fats);
-  }
+  double get todayFats => _dailyNutritionData?.fatG ?? 0.0;
 
   // Daily goals from backend
   int get dailyCalorieGoal {
@@ -421,12 +272,14 @@ class NutritionProvider extends ChangeNotifier {
     }
   }
 
-  /// Adds a food entry to a meal on the backend.
-  Future<bool> addFoodToMeal({
+  /// Logs [quantityG] grams of a catalog food in a meal on the backend.
+  /// Returns the new meal entry's id, or null if it could not be saved.
+  Future<String?> addFoodToMeal({
     required String foodEntryId,
     required String mealType,
     required double quantityG,
     DateTime? date,
+    Food? food,
   }) async {
     final targetDate = date ?? _selectedDate;
     final dateStr = _formatDate(targetDate);
@@ -442,13 +295,14 @@ class NutritionProvider extends ChangeNotifier {
       // Refresh the daily nutrition data to reflect the new entry
       await loadDailyNutrition();
 
-      debugPrint('Added meal entry: ${result.entry.id}');
-      return true;
+      if (food != null) _rememberRecent(food);
+      notifyListeners();
+      return result.entry.id;
     } catch (e) {
       debugPrint('Error adding food to meal: $e');
       _error = 'Failed to add food';
       notifyListeners();
-      return false;
+      return null;
     }
   }
 
@@ -494,11 +348,16 @@ class NutritionProvider extends ChangeNotifier {
   }
 
   /// Searches the food catalog.
-  Future<FoodSearchResult?> searchFoods(String query, {int? limit}) async {
+  Future<FoodSearchResult?> searchFoods(
+    String query, {
+    int? limit,
+    List<Enum$FoodEntryType>? types,
+  }) async {
     try {
       return await _graphQLService.searchFoodCatalog(
         query: query,
         limit: limit ?? 20,
+        types: types,
       );
     } catch (e) {
       debugPrint('Error searching foods: $e');
@@ -506,59 +365,76 @@ class NutritionProvider extends ChangeNotifier {
     }
   }
 
-  /// Looks up a food by barcode.
-  Future<dynamic> lookupBarcode(String barcode) async {
+  /// Looks up a product by barcode. Returns null if it is unknown or the
+  /// lookup failed.
+  Future<Food?> lookupBarcode(String barcode) async {
     try {
-      return await _graphQLService.getFoodByBarcode(barcode);
+      final product = await _graphQLService.getFoodByBarcode(barcode);
+      if (product == null) return null;
+      return catalogFood(
+        id: product.id,
+        name: product.name,
+        brand: product.brand,
+        servingSizeG: product.servingSizeG,
+        caloriesPer100g: product.caloriesPer100g,
+        proteinPer100g: product.proteinPer100g,
+        carbsPer100g: product.carbsPer100g,
+        fatPer100g: product.fatPer100g,
+      );
     } catch (e) {
       debugPrint('Error looking up barcode: $e');
       return null;
     }
   }
 
+  /// A catalog item as a [Food] whose nutrition values are per 100 g.
+  static Food catalogFood({
+    required String id,
+    required String name,
+    String? brand,
+    double? servingSizeG,
+    double? caloriesPer100g,
+    double? proteinPer100g,
+    double? carbsPer100g,
+    double? fatPer100g,
+  }) {
+    return Food(
+      id: id,
+      name: name,
+      brand: brand,
+      calories: caloriesPer100g ?? 0,
+      protein: proteinPer100g ?? 0,
+      carbs: carbsPer100g ?? 0,
+      fats: fatPer100g ?? 0,
+      kcalPer100g: caloriesPer100g ?? 0,
+      servingSizeG: servingSizeG,
+      dateAdded: DateTime.now(),
+    );
+  }
+
+  /// Converts a catalog search result item into a [Food] (per 100 g).
+  static Food foodFromSearchItem(FoodEntry item) => catalogFood(
+        id: item.id,
+        name: item.name,
+        brand: item.brand,
+        servingSizeG: item.servingSizeG,
+        caloriesPer100g: item.caloriesPer100g,
+        proteinPer100g: item.proteinPer100g,
+        carbsPer100g: item.carbsPer100g,
+        fatPer100g: item.fatPer100g,
+      );
+
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
-  // ── Local-only methods (kept for backward compatibility) ────────────────
-
-  void addFood(Food food) {
-    _foods.add(food);
-    _updateMicronutrients(food.micronutrients);
-    notifyListeners();
-  }
+  // ── Vitamins & supplements (tracked on the device only) ────────────────
 
   void addVitamin(String type, double amount) {
     if (_dailyMicronutrients.containsKey(type)) {
       _dailyMicronutrients[type] = (_dailyMicronutrients[type] ?? 0) + amount;
       notifyListeners();
     }
-  }
-
-  void removeFood(String foodId) {
-    final food = _foods.firstWhere((f) => f.id == foodId);
-    _foods.removeWhere((f) => f.id == foodId);
-    _removeMicronutrients(food.micronutrients);
-    notifyListeners();
-  }
-
-  void _updateMicronutrients(Map<String, double> micronutrients) {
-    micronutrients.forEach((key, value) {
-      if (_dailyMicronutrients.containsKey(key)) {
-        _dailyMicronutrients[key] = (_dailyMicronutrients[key] ?? 0) + value;
-      }
-    });
-  }
-
-  void _removeMicronutrients(Map<String, double> micronutrients) {
-    micronutrients.forEach((key, value) {
-      if (_dailyMicronutrients.containsKey(key)) {
-        _dailyMicronutrients[key] = (_dailyMicronutrients[key] ?? 0) - value;
-        if (_dailyMicronutrients[key]! < 0) {
-          _dailyMicronutrients[key] = 0;
-        }
-      }
-    });
   }
 
   void resetDailyMicronutrients() {

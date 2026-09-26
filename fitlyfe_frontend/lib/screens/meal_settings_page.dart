@@ -19,21 +19,6 @@ class MealSettingsPage extends StatefulWidget {
   State<MealSettingsPage> createState() => _MealSettingsPageState();
 }
 
-class StripedPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.05)
-      ..strokeWidth = 4;
-    for (double i = -size.height; i < size.width; i += 12) {
-      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 class _MealSettingsPageState extends State<MealSettingsPage> {
   late TextEditingController _nameController;
   late TextEditingController _goalController;
@@ -370,72 +355,6 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Striped Locked Card
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardBackground,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.2)),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Content layer (semi-transparent due to lock overlay)
-                      Opacity(
-                        opacity: 0.4,
-                        child: Column(
-                          children: [
-                            _buildLockedRow('Calories', '${mealCalories.round()} / $goalCals kcal'),
-                            Divider(height: 1, color: AppTheme.secondaryText.withValues(alpha: 0.2)),
-                            _buildLockedRow('Carbs', '${mealCarbs.toStringAsFixed(1)} / ${carbsGoal.round()} g'),
-                            Divider(height: 1, color: AppTheme.secondaryText.withValues(alpha: 0.2)),
-                            _buildLockedRow('Protein', '${mealProtein.toStringAsFixed(1)} / ${proteinGoal.round()} g'),
-                            Divider(height: 1, color: AppTheme.secondaryText.withValues(alpha: 0.2)),
-                            _buildLockedRow('Fat', '${mealFat.toStringAsFixed(1)} / ${fatGoal.round()} g'),
-                          ],
-                        ),
-                      ),
-                      // Stripes layer
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: CustomPaint(
-                            painter: StripedPainter(),
-                          ),
-                        ),
-                      ),
-                      // Pro Button overlay
-                      IgnorePointer(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.accentYellow,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 10,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.lock, color: Colors.black, size: 14),
-                              SizedBox(width: 6),
-                              Text('Pro', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Basic Visible Stats
                 Container(
                   decoration: BoxDecoration(
                     color: AppTheme.cardBackground,
@@ -444,9 +363,13 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
                   ),
                   child: Column(
                     children: [
-                      _buildBasicRow('Calories', '${mealCalories.round()} kcal', isBold: true),
+                      _buildFactRow('Calories', '${mealCalories.round()} / $goalCals kcal'),
                       Divider(height: 1, color: AppTheme.secondaryText.withValues(alpha: 0.2)),
-                      _buildBasicRow('Protein', '${mealProtein.toStringAsFixed(1)} g', isBold: true),
+                      _buildFactRow('Carbs', '${mealCarbs.toStringAsFixed(1)} / ${carbsGoal.round()} g'),
+                      Divider(height: 1, color: AppTheme.secondaryText.withValues(alpha: 0.2)),
+                      _buildFactRow('Protein', '${mealProtein.toStringAsFixed(1)} / ${proteinGoal.round()} g'),
+                      Divider(height: 1, color: AppTheme.secondaryText.withValues(alpha: 0.2)),
+                      _buildFactRow('Fat', '${mealFat.toStringAsFixed(1)} / ${fatGoal.round()} g'),
                     ],
                   ),
                 ),
@@ -478,7 +401,7 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
     );
   }
 
-  Widget _buildLockedRow(String label, String value, {Widget? suffixWidget, String? suffixLabel}) {
+  Widget _buildFactRow(String label, String value, {Widget? suffixWidget, String? suffixLabel}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Row(
@@ -491,33 +414,6 @@ class _MealSettingsPageState extends State<MealSettingsPage> {
               ?suffixWidget,
               if (suffixLabel != null) Text(suffixLabel, style: const TextStyle(color: AppTheme.secondaryText, fontSize: 15)),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBasicRow(String label, String value, {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label, 
-            style: TextStyle(
-              color: AppTheme.primaryText, 
-              fontSize: 16, 
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal
-            )
-          ),
-          Text(
-            value, 
-            style: TextStyle(
-              color: AppTheme.primaryText, 
-              fontSize: 16, 
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal
-            )
           ),
         ],
       ),

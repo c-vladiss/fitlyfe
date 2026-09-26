@@ -69,6 +69,7 @@ class TestData {
     double? carbsG = 150.0,
     double? fatG = 50.0,
     int? waterMl = 2000,
+    List<Query$DailyNutrition$dailyNutrition$meals> meals = const [],
   }) {
     return Query$DailyNutrition$dailyNutrition(
       id: id,
@@ -85,7 +86,33 @@ class TestData {
         totalFatG: 65.0,
       ),
       mealTemplate: [],
-      meals: [],
+      meals: meals,
+    );
+  }
+
+  /// A logged meal with entries given as (entryId, foodName, grams, kcal).
+  static Query$DailyNutrition$dailyNutrition$meals meal(
+    String mealType,
+    List<(String, String, double, int)> entries,
+  ) {
+    return Query$DailyNutrition$dailyNutrition$meals(
+      id: 'meal-$mealType',
+      mealType: mealType,
+      entries: [
+        for (final (id, name, grams, kcal) in entries)
+          Query$DailyNutrition$dailyNutrition$meals$entries(
+            id: id,
+            foodEntry: Query$DailyNutrition$dailyNutrition$meals$entries$foodEntry(
+              id: 'food-$name',
+              name: name,
+            ),
+            quantityG: grams,
+            calories: kcal,
+            proteinG: 10,
+            carbsG: 20,
+            fatG: 5,
+          ),
+      ],
     );
   }
 

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:fitlyfe_frontend/graphql/schema.graphql.dart';
 import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
@@ -14,8 +17,24 @@ import 'package:fitlyfe_frontend/screens/food_details_page.dart';
 import 'package:fitlyfe_frontend/screens/barcode_scanner_page.dart';
 import 'package:intl/intl.dart';
 
-class NutritionPage extends StatelessWidget {
+class NutritionPage extends StatefulWidget {
   const NutritionPage({super.key});
+
+  @override
+  State<NutritionPage> createState() => _NutritionPageState();
+}
+
+class _NutritionPageState extends State<NutritionPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Logged food lives on the backend; fetch the selected day when the tab opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<NutritionProvider>(context, listen: false).loadDailyNutrition();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -215,10 +234,14 @@ class NutritionPage extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    tp.translate('micronutrients'),
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Flexible(
+                    child: Text(
+                      tp.translate('micronutrients'),
+                      style: Theme.of(context).textTheme.titleLarge,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: () => _showAddVitaminDialog(context, tp),
                     icon: const Icon(Icons.medication, size: 20),
@@ -474,108 +497,188 @@ class NutritionPage extends StatelessWidget {
 
 class AddFoodSearchSheet extends StatefulWidget {
   final String? mealType;
+
   const AddFoodSearchSheet({super.key, this.mealType});
 
   @override
   State<AddFoodSearchSheet> createState() => _AddFoodSearchSheetState();
 }
 
-class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
-  final _nameController = TextEditingController();
-  final _caloriesController = TextEditingController();
-  final _proteinController = TextEditingController();
-  final _carbsController = TextEditingController();
-  final _fatsController = TextEditingController();
-  final _searchController = TextEditingController();
+/// Search tabs of the add-food screen.
+enum _FoodTab { search, recent, favorites }
 
-  List<Food> _filteredPresets = NutritionProvider.presets;
-  bool _showManualMenu = false;
+/// What the category boxes filter on, mapped to catalog entry types.
+enum _FoodCategory {
+  foods('Foods', Icons.restaurant, AppTheme.accentOrange,
+      [Enum$FoodEntryType.FOOD, Enum$FoodEntryType.PRODUCT]),
+  recipes('Recipes', Icons.menu_book, AppTheme.accentYellow,
+      [Enum$FoodEntryType.RECIPE]);
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final List<Enum$FoodEntryType> types;
+
+  const _FoodCategory(this.label, this.icon, this.color, this.types);
+}
+
+class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
+  /// Searches shorter than this return too much noise to be useful.
+  static const minQueryLength = 2;
+  static const _debounce = Duration(milliseconds: 350);
+
+  final _searchController = TextEditingController();
+  Timer? _debounceTimer;
+  int _searchGeneration = 0;
+
+  List<Food> _results = [];
+  bool _isSearching = false;
+  bool _searchFailed = false;
+
+  // Foods logged from this screen, shown in the "Just Added" sheet.
+  // Their id is the backend meal entry id, so they can be undone.
   final List<Food> _sessionAddedFoods = [];
   final Set<String> _animatingFoodIds = {};
   bool _justAddedAnimation = false;
 
-  String _selectedCategory = 'Foods';
-  String _selectedTab = 'Frequent';
+  _FoodCategory _selectedCategory = _FoodCategory.foods;
+  _FoodTab _selectedTab = _FoodTab.search;
 
-  static final _mockMeals = [
-    Food(id: 'm1', name: 'Chicken & Rice combo', calories: 450, protein: 40, carbs: 50, fats: 10, dateAdded: DateTime.now()),
-    Food(id: 'm2', name: 'Avocado Toast & Eggs', calories: 350, protein: 20, carbs: 30, fats: 15, dateAdded: DateTime.now()),
-  ];
-  static final _mockRecipes = [
-    Food(id: 'r1', name: 'Protein Pancakes', calories: 400, protein: 35, carbs: 45, fats: 8, dateAdded: DateTime.now()),
-  ];
+  String get _mealType => widget.mealType ?? 'Snacks';
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_filterPresets);
+    _searchController.addListener(_onQueryChanged);
   }
 
-  void _filterPresets() {
-    final query = _searchController.text.toLowerCase();
-    
-    // Safety check incase Provider isn't ready in early initState callbacks
-    if (!mounted) return;
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onQueryChanged() {
+    _debounceTimer?.cancel();
+    if (_selectedTab != _FoodTab.search) {
+      setState(() {}); // Recent / Favorites filter locally
+      return;
+    }
+    _debounceTimer = Timer(_debounce, _search);
+  }
+
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+    final generation = ++_searchGeneration;
+    if (query.length < minQueryLength) {
+      setState(() {
+        _results = [];
+        _isSearching = false;
+        _searchFailed = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearching = true);
     final provider = Provider.of<NutritionProvider>(context, listen: false);
-
-    List<Food> baseList;
-    if (_selectedTab == 'Recent') {
-      final recentNames = <String>{};
-      final recentList = <Food>[];
-      for (var f in provider.foods.reversed) {
-        if (!recentNames.contains(f.name)) {
-          recentNames.add(f.name);
-          recentList.add(f);
-        }
-      }
-      baseList = recentList;
-    } else {
-      if (_selectedCategory == 'Foods') {
-        baseList = NutritionProvider.presets;
-      } else if (_selectedCategory == 'Meals') {
-        baseList = _mockMeals;
-      } else {
-        baseList = _mockRecipes;
-      }
-    }
-
-    if (_selectedTab == 'Favorites') {
-      baseList = baseList.where((p) => provider.favoritePresetIds.contains(p.id)).toList();
-    }
-
+    final result = await provider.searchFoods(
+      query,
+      types: _selectedCategory.types,
+      limit: 25,
+    );
+    // Ignore responses to queries the user has already typed past
+    if (!mounted || generation != _searchGeneration) return;
     setState(() {
-      _filteredPresets = baseList
-          .where((p) => p.name.toLowerCase().contains(query))
-          .toList();
+      _isSearching = false;
+      _searchFailed = result == null;
+      _results =
+          result?.items.map(NutritionProvider.foodFromSearchItem).toList() ?? [];
     });
   }
 
-  void _addFood(Food baseFood) {
-    final food = Food(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: baseFood.name,
-      calories: baseFood.kcalPer100g ?? baseFood.calories,
-      protein: baseFood.protein,
-      carbs: baseFood.carbs,
-      fats: baseFood.fats,
-      micronutrients: baseFood.micronutrients,
-      dateAdded: Provider.of<NutritionProvider>(context, listen: false).selectedDate,
-      mealType: widget.mealType,
+  /// Foods to show for the current tab and search text.
+  List<Food> _visibleFoods(NutritionProvider provider) {
+    if (_selectedTab == _FoodTab.search) return _results;
+    final query = _searchController.text.trim().toLowerCase();
+    final base = _selectedTab == _FoodTab.recent
+        ? provider.recentFoods
+        : provider.favoriteFoods;
+    return base.where((f) => f.name.toLowerCase().contains(query)).toList();
+  }
+
+  /// Logs one serving (or 100 g when the serving size is unknown).
+  Future<void> _quickAdd(Food food) async {
+    final grams = food.servingSizeG ?? 100;
+    final provider = Provider.of<NutritionProvider>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _animatingFoodIds.add(food.id));
+
+    final entryId = await provider.addFoodToMeal(
+      foodEntryId: food.id,
+      mealType: _mealType,
+      quantityG: grams,
+      food: food,
     );
-    Provider.of<NutritionProvider>(context, listen: false).addFood(food);
-    
-    setState(() {
-      _sessionAddedFoods.add(food);
-      _animatingFoodIds.add(baseFood.id);
-    });
+    if (!mounted) return;
 
+    if (entryId == null) {
+      setState(() => _animatingFoodIds.remove(food.id));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not add the food. Please try again.')),
+      );
+      return;
+    }
+    setState(() => _sessionAddedFoods.add(_loggedFood(food, entryId, grams)));
     Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() => _animatingFoodIds.remove(baseFood.id));
-      }
+      if (mounted) setState(() => _animatingFoodIds.remove(food.id));
     });
-
     _triggerJustAddedAnimation();
+  }
+
+  /// A logged entry for the "Just Added" list, with totals for [grams].
+  static Food _loggedFood(Food food, String entryId, double grams) {
+    final ratio = grams / 100;
+    return food.copyWith(
+      id: entryId,
+      calories: food.calories * ratio,
+      protein: food.protein * ratio,
+      carbs: food.carbs * ratio,
+      fats: food.fats * ratio,
+    );
+  }
+
+  Future<void> _openDetails(Food food) async {
+    final added = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FoodDetailsPage(food: food, mealType: _mealType),
+      ),
+    );
+    if (added is Food && mounted) {
+      setState(() => _sessionAddedFoods.add(added));
+      _triggerJustAddedAnimation();
+    }
+  }
+
+  Future<void> _scanBarcode() async {
+    final barcode = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const BarcodeScannerPage()),
+    );
+    if (barcode is! String || !mounted) return;
+
+    final provider = Provider.of<NutritionProvider>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    final food = await provider.lookupBarcode(barcode);
+    if (!mounted) return;
+    if (food == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('No product found for barcode $barcode')),
+      );
+      return;
+    }
+    await _openDetails(food);
   }
 
   void _triggerJustAddedAnimation() {
@@ -585,40 +688,12 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
     });
   }
 
-  Widget _buildDarkTextField({
-    required TextEditingController controller,
-    required String hintText,
-    TextInputType? keyboardType,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        style: const TextStyle(color: AppTheme.primaryText, fontSize: 16),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: const TextStyle(color: AppTheme.secondaryText, fontSize: 16),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          border: InputBorder.none,
-          isDense: true,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryBox(String label, IconData iconData, Color iconColor) {
-    final isSelected = _selectedCategory == label;
+  Widget _buildCategoryBox(_FoodCategory category) {
+    final isSelected = _selectedCategory == category;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _selectedCategory = label;
-          _filterPresets();
-        });
+        setState(() => _selectedCategory = category);
+        _search();
       },
       child: Column(
         children: [
@@ -627,29 +702,27 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
             height: 64,
             width: 64,
             decoration: BoxDecoration(
-              color: isSelected ? iconColor.withValues(alpha: 0.2) : AppTheme.cardBackground.withValues(alpha: 0.5),
+              color: isSelected ? category.color.withValues(alpha: 0.2) : AppTheme.cardBackground.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isSelected ? iconColor : Colors.transparent, width: 2),
+              border: Border.all(color: isSelected ? category.color : Colors.transparent, width: 2),
             ),
             alignment: Alignment.center,
-            child: Icon(iconData, size: 28, color: iconColor),
+            child: Icon(category.icon, size: 28, color: category.color),
           ),
           const SizedBox(height: 8),
-          Text(label, style: TextStyle(color: isSelected ? AppTheme.primaryText : AppTheme.secondaryText, fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+          Text(category.label, style: TextStyle(color: isSelected ? AppTheme.primaryText : AppTheme.secondaryText, fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
         ],
       ),
     );
   }
 
-  Widget _buildTab(String label) {
-    final isSelected = _selectedTab == label;
+  Widget _buildTab(String label, _FoodTab tab) {
+    final isSelected = _selectedTab == tab;
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() {
-            _selectedTab = label;
-            _filterPresets();
-          });
+          setState(() => _selectedTab = tab);
+          if (tab == _FoodTab.search) _search();
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -666,116 +739,43 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
     );
   }
 
-  Widget _buildEmptyState(TranslationProvider tp) {
-    String categoryLabel = _selectedCategory.toLowerCase();
-    String emptyMessage = 'The food you are searching is not in the database.';
-    bool showManualButton = false;
-
-    if (_selectedTab == 'Recent') {
-      emptyMessage = 'There are no recent $categoryLabel added.';
-    } else if (_selectedTab == 'Favorites') {
-      emptyMessage = 'There are no favorites $categoryLabel.';
-    } else if (_selectedCategory != 'Foods') {
-      emptyMessage = 'No $categoryLabel found.';
-    } else {
-      showManualButton = true;
+  Widget _buildEmptyState() {
+    final query = _searchController.text.trim();
+    final String message;
+    IconData icon = Icons.search_off;
+    switch (_selectedTab) {
+      case _FoodTab.recent:
+        message = 'Foods you log will show up here.';
+      case _FoodTab.favorites:
+        message = 'Tap the star on a food to keep it here.';
+      case _FoodTab.search:
+        if (_searchFailed) {
+          icon = Icons.cloud_off;
+          message = 'Could not reach the food database. Check your connection and try again.';
+        } else if (query.length < minQueryLength) {
+          icon = Icons.search;
+          message = 'Search thousands of foods, or scan a barcode.';
+        } else {
+          message = 'No ${_selectedCategory.label.toLowerCase()} found for "$query". Try another name or scan the barcode.';
+        }
     }
 
+    // Scrollable so long messages still fit on short screens / with the keyboard open
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.search_off, size: 64, color: AppTheme.secondaryText),
+            Icon(icon, size: 64, color: AppTheme.secondaryText),
             const SizedBox(height: 16),
             Text(
-              emptyMessage,
+              message,
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppTheme.primaryText, fontSize: 16),
             ),
-            if (showManualButton) ...[
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => setState(() => _showManualMenu = true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accentGreen,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Add Manually', style: TextStyle(color: AppTheme.backgroundColor, fontWeight: FontWeight.bold)),
-              ),
-            ],
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildManualMenu() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppTheme.primaryText),
-                onPressed: () => setState(() => _showManualMenu = false),
-              ),
-              const Text('Manual Entry', style: TextStyle(color: AppTheme.primaryText, fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildDarkTextField(controller: _nameController, hintText: 'Food Name'),
-          const SizedBox(height: 16),
-          _buildDarkTextField(controller: _caloriesController, hintText: 'Calories', keyboardType: TextInputType.number),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildDarkTextField(controller: _proteinController, hintText: 'Protein (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildDarkTextField(controller: _carbsController, hintText: 'Carbs (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildDarkTextField(controller: _fatsController, hintText: 'Fats (g)', keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-            ],
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () {
-              if (_nameController.text.isEmpty) return;
-              final food = Food(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                name: _nameController.text,
-                calories: double.tryParse(_caloriesController.text) ?? 0,
-                protein: double.tryParse(_proteinController.text) ?? 0,
-                carbs: double.tryParse(_carbsController.text) ?? 0,
-                fats: double.tryParse(_fatsController.text) ?? 0,
-                micronutrients: const {},
-                dateAdded: Provider.of<NutritionProvider>(context, listen: false).selectedDate,
-                mealType: widget.mealType,
-              );
-              Provider.of<NutritionProvider>(context, listen: false).addFood(food);
-              setState(() {
-                _sessionAddedFoods.add(food);
-                _showManualMenu = false;
-                _nameController.clear();
-                _caloriesController.clear();
-                _proteinController.clear();
-                _carbsController.clear();
-                _fatsController.clear();
-              });
-              _triggerJustAddedAnimation();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentGreen,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Save Food', style: TextStyle(color: AppTheme.backgroundColor, fontSize: 16, fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
   }
@@ -801,7 +801,7 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
                   const Text('Just Added', style: TextStyle(color: AppTheme.primaryText, fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: _sessionAddedFoods.isEmpty 
+                    child: _sessionAddedFoods.isEmpty
                       ? const Center(child: Text('No foods added yet', style: TextStyle(color: AppTheme.secondaryText)))
                       : ListView.separated(
                       itemCount: _sessionAddedFoods.length,
@@ -811,14 +811,18 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(food.name, style: const TextStyle(color: AppTheme.primaryText, fontSize: 16)),
-                          subtitle: Text('${food.calories.toInt()} kcal', style: const TextStyle(color: AppTheme.secondaryText, fontSize: 12)),
+                          subtitle: Text('${food.calories.round()} kcal', style: const TextStyle(color: AppTheme.secondaryText, fontSize: 12)),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_outline, color: AppTheme.accentOrange),
-                            onPressed: () {
-                              Provider.of<NutritionProvider>(context, listen: false).removeFood(food.id);
-                              setModalState(() => _sessionAddedFoods.removeAt(index));
+                            tooltip: 'Remove',
+                            onPressed: () async {
+                              final navigator = Navigator.of(context);
+                              final removed = await Provider.of<NutritionProvider>(context, listen: false)
+                                  .deleteMealEntry(food.id);
+                              if (!removed || !mounted) return;
+                              setModalState(() => _sessionAddedFoods.remove(food));
                               setState(() {}); // trigger update in parent pill
-                              if (_sessionAddedFoods.isEmpty) Navigator.pop(context);
+                              if (_sessionAddedFoods.isEmpty) navigator.pop();
                             },
                           ),
                         );
@@ -837,6 +841,8 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
   @override
   Widget build(BuildContext context) {
     final tp = Provider.of<TranslationProvider>(context);
+    final provider = Provider.of<NutritionProvider>(context);
+    final foods = _visibleFoods(provider);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -869,9 +875,9 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
                       width: 1.5,
                     ),
                   ),
-                  child: const Text(
-                    'Just Added',
-                    style: TextStyle(color: AppTheme.accentGreen, fontSize: 12, fontWeight: FontWeight.bold),
+                  child: Text(
+                    _sessionAddedFoods.isEmpty ? 'Just Added' : 'Just Added (${_sessionAddedFoods.length})',
+                    style: const TextStyle(color: AppTheme.accentGreen, fontSize: 12, fontWeight: FontWeight.bold),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
@@ -898,6 +904,7 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
                 border: Border.all(color: AppTheme.accentGreen, width: 1.5),
               ),
               child: TextField(
+                key: const Key('foodSearchField'),
                 controller: _searchController,
                 style: const TextStyle(color: AppTheme.primaryText, fontSize: 16),
                 decoration: InputDecoration(
@@ -906,21 +913,8 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
                   prefixIcon: const Icon(Icons.search, color: AppTheme.secondaryText, size: 24),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.qr_code_scanner, color: AppTheme.secondaryText, size: 24),
-                    onPressed: () async {
-                      var res = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const BarcodeScannerPage(),
-                        ),
-                      );
-                      if (res is String && mounted) {
-                        setState(() {
-                          _searchController.text = res;
-                        });
-                        // At this point we would trigger a lookup in the OpenFoodFacts API, 
-                        // but for now we just populate the search bar with the barcode.
-                      }
-                    },
+                    tooltip: 'Scan barcode',
+                    onPressed: _scanBarcode,
                   ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -931,148 +925,130 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
           const SizedBox(height: 24),
 
           // Categories row
-          if (!_showManualMenu)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildCategoryBox(_FoodCategory.foods),
+                const SizedBox(width: 16),
+                _buildCategoryBox(_FoodCategory.recipes),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Tabs
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.cardBackground.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildCategoryBox('Foods', Icons.restaurant, AppTheme.accentOrange),
-                  const SizedBox(width: 16),
-                  _buildCategoryBox('Meals', Icons.lunch_dining, AppTheme.accentGreen),
-                  const SizedBox(width: 16),
-                  _buildCategoryBox('Recipes', Icons.menu_book, AppTheme.accentYellow),
+                  _buildTab('Search', _FoodTab.search),
+                  _buildTab('Recent', _FoodTab.recent),
+                  _buildTab('Favorites', _FoodTab.favorites),
                 ],
               ),
             ),
-          
-          if (!_showManualMenu) const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 16),
 
-          // Tabs
-          if (!_showManualMenu)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.cardBackground.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    _buildTab('Frequent'),
-                    _buildTab('Recent'),
-                    _buildTab('Favorites'),
-                  ],
-                ),
-              ),
-            ),
-
-          if (!_showManualMenu) const SizedBox(height: 16),
-
-          // List or Manual form
+          // Results
           Expanded(
-            child: _showManualMenu
-                ? _buildManualMenu()
-                : (_filteredPresets.isEmpty)
-                    ? _buildEmptyState(tp)
+            child: _isSearching && _selectedTab == _FoodTab.search
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.accentGreen))
+                : foods.isEmpty
+                    ? _buildEmptyState()
                     : ListView.separated(
-                        itemCount: _filteredPresets.length,
+                        itemCount: foods.length,
                         separatorBuilder: (context, index) => Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),
-                        itemBuilder: (context, index) {
-                          final preset = _filteredPresets[index];
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            title: Text(preset.name, style: const TextStyle(color: AppTheme.primaryText, fontSize: 16, fontWeight: FontWeight.w500)),
-                            subtitle: Text('1 regular serving', style: TextStyle(color: AppTheme.secondaryText.withValues(alpha: 0.8), fontSize: 12)),
-                            onTap: () async {
-                              final addedFood = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => FoodDetailsPage(
-                                    food: preset,
-                                    mealType: widget.mealType,
-                                  ),
-                                ),
-                              );
-                              if (addedFood != null && addedFood is Food) {
-                                setState(() {
-                                  _sessionAddedFoods.add(addedFood);
-                                });
-                              }
-                            },
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text('${(preset.kcalPer100g ?? preset.calories).toInt()} kcal', style: const TextStyle(color: AppTheme.primaryText, fontSize: 14)),
-                                const SizedBox(width: 12),
-                                Consumer<NutritionProvider>(
-                                  builder: (context, provider, child) {
-                                    final isFav = provider.favoritePresetIds.contains(preset.id);
-                                    return GestureDetector(
-                                      onTap: () {
-                                        provider.toggleFavoritePreset(preset.id);
-                                        if (_selectedTab == 'Favorites') {
-                                           // Re-filter so to immediately remove from screen if untoggled in the filtered view
-                                           _filterPresets();
-                                        }
-                                      },
-                                      child: Icon(
-                                        isFav ? Icons.star : Icons.star_border,
-                                        color: isFav ? AppTheme.accentYellow : AppTheme.secondaryText.withValues(alpha: 0.5),
-                                        size: 24,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(width: 12),
-                                GestureDetector(
-                                  onTap: () => _addFood(preset),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: _animatingFoodIds.contains(preset.id) ? AppTheme.accentGreen : Colors.transparent,
-                                      border: Border.all(color: AppTheme.accentGreen, width: 1.5),
-                                    ),
-                                    child: Icon(
-                                      _animatingFoodIds.contains(preset.id) ? Icons.check : Icons.add, 
-                                      color: _animatingFoodIds.contains(preset.id) ? AppTheme.backgroundColor : AppTheme.accentGreen, 
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                        itemBuilder: (context, index) => _buildFoodTile(foods[index], provider),
                       ),
           ),
 
-          // Bottom sticky "Done" button if not in manual menu
-          if (!_showManualMenu)
-            Padding(
-              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 40.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accentGreen,
-                    foregroundColor: AppTheme.backgroundColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    elevation: 0,
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Done', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          // Bottom sticky "Done" button
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 40.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentGreen,
+                  foregroundColor: AppTheme.backgroundColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  elevation: 0,
                 ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             ),
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildFoodTile(Food food, NutritionProvider provider) {
+    final serving = food.servingSizeG;
+    final servingLabel = serving != null ? '1 serving (${_formatGrams(serving)} g)' : '100 g';
+    final servingCalories = food.calories * (serving ?? 100) / 100;
+    final isFav = provider.isFavorite(food.id);
+    final isAnimating = _animatingFoodIds.contains(food.id);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      title: Text(food.name, style: const TextStyle(color: AppTheme.primaryText, fontSize: 16, fontWeight: FontWeight.w500)),
+      subtitle: Text(
+        [if (food.brand != null && food.brand!.isNotEmpty) food.brand!, servingLabel].join(' • '),
+        style: TextStyle(color: AppTheme.secondaryText.withValues(alpha: 0.8), fontSize: 12),
+      ),
+      onTap: () => _openDetails(food),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${servingCalories.round()} kcal', style: const TextStyle(color: AppTheme.primaryText, fontSize: 14)),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () => provider.toggleFavorite(food),
+            child: Icon(
+              isFav ? Icons.star : Icons.star_border,
+              color: isFav ? AppTheme.accentYellow : AppTheme.secondaryText.withValues(alpha: 0.5),
+              size: 24,
+              semanticLabel: isFav ? 'Remove from favorites' : 'Add to favorites',
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: isAnimating ? null : () => _quickAdd(food),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isAnimating ? AppTheme.accentGreen : Colors.transparent,
+                border: Border.all(color: AppTheme.accentGreen, width: 1.5),
+              ),
+              child: Icon(
+                isAnimating ? Icons.check : Icons.add,
+                color: isAnimating ? AppTheme.backgroundColor : AppTheme.accentGreen,
+                size: 18,
+                semanticLabel: 'Add ${food.name}',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatGrams(double grams) =>
+      grams == grams.roundToDouble() ? grams.toInt().toString() : grams.toStringAsFixed(1);
 }
 
 class _CalorieMacroChart extends StatefulWidget {
@@ -1328,11 +1304,18 @@ class _MealSection extends StatelessWidget {
                     const SizedBox(width: 16),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                      onPressed: () {
-                        Provider.of<NutritionProvider>(
+                      tooltip: 'Remove ${food.name}',
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final removed = await Provider.of<NutritionProvider>(
                           context,
                           listen: false,
-                        ).removeFood(food.id);
+                        ).deleteMealEntry(food.id);
+                        if (!removed) {
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('Could not remove the food. Please try again.')),
+                          );
+                        }
                       },
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
