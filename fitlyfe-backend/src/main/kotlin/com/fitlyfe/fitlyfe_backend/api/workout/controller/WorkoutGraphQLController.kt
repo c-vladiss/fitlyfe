@@ -6,11 +6,12 @@ import com.fitlyfe.fitlyfe_backend.api.workout.entity.*
 import com.fitlyfe.fitlyfe_backend.api.workout.service.WorkoutService
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
-import org.springframework.graphql.data.method.annotation.SchemaMapping
+import org.springframework.graphql.data.method.annotation.BatchMapping
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.stereotype.Controller
+import java.util.UUID
 
 @Controller
 class WorkoutGraphQLController(
@@ -25,19 +26,17 @@ class WorkoutGraphQLController(
         return workoutService.getWorkoutSessions(user, limit ?: 10)
     }
 
-    @SchemaMapping(typeName = "WorkoutSession", field = "exercises")
-    fun getExercises(session: WorkoutSessionEntity): List<WorkoutExerciseEntity> {
-        return workoutService.getExercisesForSession(session)
+    // Batched so a list of sessions loads its exercises (and their sets) in one query per level
+    @BatchMapping(typeName = "WorkoutSession", field = "exercises")
+    fun getExercises(sessions: List<WorkoutSessionEntity>): List<List<WorkoutExerciseEntity>> {
+        return workoutService.getExercisesForSessions(sessions)
     }
 
-    @SchemaMapping(typeName = "WorkoutExercise", field = "sets")
-    fun getSets(workoutExercise: WorkoutExerciseEntity): List<ExerciseSetEntity> {
-        return workoutService.getSetsForExercise(workoutExercise)
+    @BatchMapping(typeName = "WorkoutExercise", field = "sets")
+    fun getSets(workoutExercises: List<WorkoutExerciseEntity>): List<List<ExerciseSetEntity>> {
+        return workoutService.getSetsForExercises(workoutExercises)
     }
 
-    private fun getUserFromJwt(jwt: Jwt): UserEntity {
-        val supabaseId = jwt.getClaimAsString("sub")
-        val email = jwt.getClaimAsString("email")
-        return userService.getOrCreate(supabaseId, email)
-    }
+    private fun getUserFromJwt(jwt: Jwt): UserEntity =
+        userService.resolveUser(UUID.fromString(jwt.subject), jwt.getClaimAsString("email"))
 }
