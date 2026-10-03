@@ -3,6 +3,7 @@ import 'package:fitlyfe_frontend/graphql/operations/auth.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/operations/food.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/operations/nutrition.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/operations/user.graphql.dart';
+import 'package:fitlyfe_frontend/graphql/operations/workout.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/schema.graphql.dart';
 import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
@@ -41,6 +42,9 @@ typedef FoodEntry = Query$SearchFoodCatalog$searchFoodCatalog$items;
 
 /// Type alias for user goals query result.
 typedef UserGoalsResult = Query$UserGoals$userGoals;
+
+/// Type alias for a saved workout session (shared by the query and the mutation).
+typedef WorkoutSessionResult = Fragment$WorkoutSessionFields;
 
 class GraphQLService {
   late GraphQLClient _client;
@@ -211,6 +215,8 @@ class GraphQLService {
       QueryOptions(
         document: documentNodeQueryDailyNutrition,
         variables: Variables$Query$DailyNutrition(date: date).toJson(),
+        // Refetched after every add/delete, so it must not come from the cache
+        fetchPolicy: FetchPolicy.networkOnly,
       ),
     );
 
@@ -377,5 +383,75 @@ class GraphQLService {
     if (data == null) return null;
 
     return Query$FoodEntryById.fromJson(data).foodEntryById;
+  }
+  // ── Workout Operations ──────────────────────────────────────────────────
+
+  /// Fetches the current user's most recent workout sessions, newest first.
+  Future<List<WorkoutSessionResult>> getWorkoutSessions({
+    int limit = 50,
+  }) async {
+    final result = await _client.query(
+      QueryOptions(
+        document: documentNodeQueryWorkoutSessions,
+        variables: Variables$Query$WorkoutSessions(limit: limit).toJson(),
+        // Sessions are written by this device and others; never serve stale history
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+
+    if (result.hasException) {
+      _handleException(result.exception!, 'workoutSessions');
+    }
+
+    final data = result.data;
+    if (data == null) {
+      throw BackendSyncException('workoutSessions query returned null data');
+    }
+
+    return Query$WorkoutSessions.fromJson(data).workoutSessions;
+  }
+
+  /// Saves a finished workout with its exercises and sets.
+  Future<WorkoutSessionResult> logWorkoutSession(
+    Input$LogWorkoutSessionInput input,
+  ) async {
+    final result = await _client.mutate(
+      MutationOptions(
+        document: documentNodeMutationLogWorkoutSession,
+        variables: Variables$Mutation$LogWorkoutSession(input: input).toJson(),
+      ),
+    );
+
+    if (result.hasException) {
+      _handleException(result.exception!, 'logWorkoutSession');
+    }
+
+    final data = result.data;
+    if (data == null) {
+      throw BackendSyncException(
+        'logWorkoutSession mutation returned null data',
+      );
+    }
+
+    return Mutation$LogWorkoutSession.fromJson(data).logWorkoutSession;
+  }
+
+  /// Deletes one of the current user's workout sessions.
+  Future<bool> deleteWorkoutSession(String id) async {
+    final result = await _client.mutate(
+      MutationOptions(
+        document: documentNodeMutationDeleteWorkoutSession,
+        variables: Variables$Mutation$DeleteWorkoutSession(id: id).toJson(),
+      ),
+    );
+
+    if (result.hasException) {
+      _handleException(result.exception!, 'deleteWorkoutSession');
+    }
+
+    final data = result.data;
+    if (data == null) return false;
+
+    return Mutation$DeleteWorkoutSession.fromJson(data).deleteWorkoutSession;
   }
 }

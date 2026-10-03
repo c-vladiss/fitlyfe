@@ -26,7 +26,7 @@ FitLyfe is a fitness tracking mobile app with a Flutter frontend and Kotlin/Spri
 ./gradlew build
 ```
 
-Backend requires environment variables: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `SUPABASE_URL`. Copy `.env.example` to `.env` for local development.
+Backend requires environment variables: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `SUPABASE_URL`. Copy `.env.example` to `.env` for local development. `SHOW_SQL` and `GRAPHIQL_ENABLED` are off unless set (the example `.env` turns them on).
 
 ### Frontend (from `fitlyfe_frontend/`)
 
@@ -90,9 +90,11 @@ flutter pub run build_runner build --delete-conflicting-outputs
 - **GraphQL API**: Schema files in `src/main/resources/graphql/*.graphqls`, controllers annotated with `@Controller` using `@MutationMapping`/`@QueryMapping`
 - **Domain modules**: `api/auth`, `api/user`, `api/workout`, `api/nutrition`, `api/tracking`, `api/membership`
 - **Each module** typically has: `entity/`, `repository/`, `service/`, `controller/`
-- **Database migrations**: Flyway migrations in `src/main/resources/db/migration/`
+- **Database migrations**: Flyway migrations in `src/main/resources/db/migration/`. Hibernate runs with `ddl-auto: validate`, so every entity change needs a matching migration; the integration tests build the schema from migrations only and fail on any drift
+- **Current user**: resolve it with `UserService.resolveUser(supabaseId, email)` (a plain lookup; only creates the row if `syncUser` hasn't run yet)
+- **Nested list fields**: use `@BatchMapping` instead of `@SchemaMapping` so lists of parents load their children in one query
 - **Security**: JWT validation via Spring Security OAuth2 Resource Server, `@PreAuthorize("isAuthenticated()")` on protected endpoints
-- **Testing**: Extend `AbstractIntegrationTest` for integration tests - uses Testcontainers for PostgreSQL and Keycloak
+- **Testing**: Extend `AbstractIntegrationTest` for integration tests - uses a Testcontainers PostgreSQL shared by the whole run. Use `GraphQLTestClient` with `asUser = <uuid>` to call the API as an authenticated user (`TestSecurityConfig` accepts fake `test.<uuid>` tokens)
 
 ### Frontend Architecture (Flutter)
 
@@ -102,7 +104,7 @@ flutter pub run build_runner build --delete-conflicting-outputs
 - **GraphQL client**: `lib/services/graphql_service.dart` - uses generated types, injects Supabase JWT
 - **GraphQL types**: Generated from `lib/graphql/schema.graphql` via `graphql_codegen`
 - **Config**: Compile-time config via `--dart-define-from-file`, validated in `lib/config/app_config.dart`
-- **Localization**: Generated files in `lib/l10n/generated/`, supports 15+ languages
+- **Localization**: Flutter `gen-l10n` (config in `l10n.yaml`). Strings live in `lib/l10n/app_<locale>.arb` (template: `app_en.arb`); read them with `AppLocalizations.of(context).someKey`. Generated code is in `lib/l10n/generated/` (regenerate with `flutter gen-l10n`). Shipped languages: English, Spanish, French, German — every shipped ARB must translate every key (`test/l10n/arb_consistency_test.dart`). Partial translations for other languages wait in `l10n_incomplete/`. `LocaleProvider` stores the user's language choice (null = phone language)
 - **Screens**: `lib/screens/` - main app screens including onboarding flow
 - **Widgets**: `lib/widgets/` - reusable UI components
 
@@ -120,4 +122,4 @@ Schema is split across multiple files in `fitlyfe-backend/src/main/resources/gra
 - `auth.graphqls` - syncUser, completeOnboarding mutations
 - `user.graphqls`, `workout.graphqls`, `nutrition.graphqls` - domain-specific operations
 
-Backend runs GraphiQL at `/graphiql` when enabled.
+Backend runs GraphiQL at `/graphiql` when `GRAPHIQL_ENABLED=true`.

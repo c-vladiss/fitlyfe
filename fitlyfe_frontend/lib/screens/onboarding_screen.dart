@@ -369,8 +369,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              // Using correctly mapped years_old key from AppLocalizations
-              "${_calculateAge(_selectedDate)} ${l10n.years_old}",
+              l10n.yearsOld(_calculateAge(_selectedDate)),
               style: TextStyle(
                 fontSize: 18,
                 color: AppTheme.secondaryText.withValues(alpha: 0.7),

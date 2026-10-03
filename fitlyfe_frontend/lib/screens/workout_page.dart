@@ -7,7 +7,7 @@ import 'package:fitlyfe_frontend/models/workout.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/screens/active_workout_page.dart';
 
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 
 class WorkoutPage extends StatefulWidget {
   const WorkoutPage({super.key});
@@ -37,6 +37,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
       if (workoutProvider.routines.length <= 1) {
         workoutProvider.initializeWorkoutsForGoal(appState.currentUser.goal);
       }
+      workoutProvider.loadSessions();
     });
   }
 
@@ -52,7 +53,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   @override
   Widget build(BuildContext context) {
     final workoutProvider = Provider.of<WorkoutProvider>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       body: GestureDetector(
@@ -88,7 +89,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         left: 44,
                       ), // Icon size + spacing
                       child: Text(
-                        tp.translate('track_your_gains'),
+                        l10n.trackYourGains,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
@@ -102,11 +103,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _buildTabButton(tp.translate('log_session'), 0),
+                      child: _buildTabButton(l10n.logSession, 0),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildTabButton(tp.translate('rest_timer'), 1),
+                      child: _buildTabButton(l10n.restTimer, 1),
                     ),
                   ],
                 ),
@@ -116,7 +117,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
               // Content
               Expanded(
                 child: _selectedTab == 0
-                    ? _buildLogSessionTab(context, workoutProvider, tp)
+                    ? _buildLogSessionTab(context, workoutProvider, l10n)
                     : const RestTimerWidget(),
               ),
             ],
@@ -151,7 +152,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   Widget _buildLogSessionTab(
     BuildContext context,
     WorkoutProvider provider,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -238,31 +239,38 @@ class _WorkoutPageState extends State<WorkoutPage> {
 
           // Current Routine Header
           Text(
-            tp.translate('active_workout'),
+            l10n.activeWorkout,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
           if (provider.currentRoutine != null)
-            _buildRoutineCard(context, provider.currentRoutine!, tp),
+            _buildRoutineCard(context, provider.currentRoutine!, l10n),
           const SizedBox(height: 32),
 
-          // Logged Exercises for Today
-          if (provider.sessions.any(
-            (s) => s.startTime.day == DateTime.now().day,
-          )) ...[
+          if (provider.pendingCount > 0) _buildPendingBanner(provider),
+
+          // Workout history (saved on the backend, plus any waiting to sync)
+          if (provider.sessions.isNotEmpty) ...[
             const SizedBox(height: 32),
-            Text('Logged Today', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Recent Workouts',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 16),
             ...provider.sessions
-                .where((s) => s.startTime.day == DateTime.now().day)
-                .expand((s) => s.exercises)
-                .map((exercise) => _buildLoggedExerciseCard(exercise)),
+                .take(10)
+                .map(
+                  (session) => _buildSessionCard(context, provider, session),
+                ),
+          ] else if (provider.isLoading) ...[
+            const SizedBox(height: 32),
+            const Center(child: CircularProgressIndicator()),
           ],
           const SizedBox(height: 32),
 
           // Log Set Section
           Text(
-            tp.translate('log_session'),
+            l10n.logSession,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
@@ -291,8 +299,8 @@ class _WorkoutPageState extends State<WorkoutPage> {
                 TextField(
                   controller: _exerciseController,
                   decoration: InputDecoration(
-                    labelText: tp.translate('exercise_name'),
-                    hintText: tp.translate('enter_exercise_name'),
+                    labelText: l10n.exerciseName,
+                    hintText: l10n.enterExerciseName,
                     prefixIcon: const Icon(
                       Icons.fitness_center,
                       color: AppTheme.accentGreen,
@@ -316,7 +324,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                       child: TextField(
                         controller: _repsController,
                         decoration: InputDecoration(
-                          labelText: tp.translate('reps'),
+                          labelText: l10n.reps,
                           hintText: '12',
                           filled: true,
                           fillColor: AppTheme.backgroundColor.withValues(
@@ -368,14 +376,28 @@ class _WorkoutPageState extends State<WorkoutPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      if (_exerciseController.text.isEmpty ||
-                          _repsController.text.isEmpty) {
+                    onPressed: () async {
+                      final exerciseName = _exerciseController.text.trim();
+                      final reps = int.tryParse(_repsController.text.trim());
+                      if (exerciseName.isEmpty || reps == null || reps < 0) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
                               'Please enter exercise name and reps',
                             ),
+                          ),
+                        );
+                        return;
+                      }
+                      final weightText = _weightController.text
+                          .trim()
+                          .replaceAll(',', '.');
+                      final weight = double.tryParse(weightText);
+                      if (weightText.isNotEmpty &&
+                          (weight == null || weight < 0)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please enter a valid weight'),
                           ),
                         );
                         return;
@@ -398,31 +420,35 @@ class _WorkoutPageState extends State<WorkoutPage> {
                           .firstWhere(
                             (e) =>
                                 e.name.toLowerCase() ==
-                                _exerciseController.text.toLowerCase(),
+                                exerciseName.toLowerCase(),
                             orElse: () {
-                              provider.addExerciseToSession(
-                                _exerciseController.text,
-                              );
+                              provider.addExerciseToSession(exerciseName);
                               return provider.activeSession!.exercises.last;
                             },
                           );
 
                       provider.addSetToExercise(
                         existingExercise.id,
-                        int.parse(_repsController.text),
-                        double.tryParse(_weightController.text),
+                        reps,
+                        weight,
                       );
-
-                      // End session immediately for "Quick Log" to save it
-                      provider.endSession();
 
                       _repsController.clear();
                       _weightController.clear();
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Set logged successfully!'),
-                          backgroundColor: AppTheme.accentGreen,
+                      // End session immediately for "Quick Log" to save it
+                      final messenger = ScaffoldMessenger.of(context);
+                      final result = await provider.endSession();
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            result == WorkoutSaveResult.saved
+                                ? 'Set logged successfully!'
+                                : 'Set saved on this device. It will sync when you\'re back online.',
+                          ),
+                          backgroundColor: result == WorkoutSaveResult.saved
+                              ? AppTheme.accentGreen
+                              : AppTheme.accentYellow,
                         ),
                       );
                     },
@@ -431,7 +457,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                       backgroundColor: AppTheme.accentGreen,
                       foregroundColor: AppTheme.backgroundColor,
                     ),
-                    child: Text(tp.translate('log_set')),
+                    child: Text(l10n.logSet),
                   ),
                 ),
               ],
@@ -440,6 +466,134 @@ class _WorkoutPageState extends State<WorkoutPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildPendingBanner(WorkoutProvider provider) {
+    final count = provider.pendingCount;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.accentYellow.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off, color: AppTheme.accentYellow, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              count == 1
+                  ? '1 workout is waiting to sync'
+                  : '$count workouts are waiting to sync',
+            ),
+          ),
+          TextButton(
+            onPressed: provider.isLoading ? null : provider.loadSessions,
+            child: const Text('RETRY'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSessionCard(
+    BuildContext context,
+    WorkoutProvider provider,
+    WorkoutSession session,
+  ) {
+    final start = session.startTime;
+    final date =
+        '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  session.routineName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              if (!session.isSynced)
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(
+                    Icons.cloud_off,
+                    color: AppTheme.accentYellow,
+                    size: 18,
+                  ),
+                ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                color: AppTheme.secondaryText,
+                tooltip: 'Delete workout',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _confirmDelete(context, provider, session),
+              ),
+            ],
+          ),
+          Text(
+            '$date • ${session.totalSets} sets',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          ...session.exercises.map(_buildLoggedExerciseCard),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WorkoutProvider provider,
+    WorkoutSession session,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardBackground,
+        title: const Text('Delete workout?'),
+        content: Text(
+          '"${session.routineName}" will be removed from your history.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'DELETE',
+              style: TextStyle(color: AppTheme.accentRed),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final deleted = await provider.deleteSession(session.id);
+    if (!deleted) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not delete the workout. Please try again.'),
+        ),
+      );
+    }
   }
 
   Widget _buildLoggedExerciseCard(Exercise exercise) {
@@ -493,7 +647,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   Widget _buildRoutineCard(
     BuildContext context,
     WorkoutRoutine routine,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -531,7 +685,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${routine.exercises.length} ${tp.translate('exercises')} • ${routine.estimatedDuration.inMinutes}m',
+                      '${routine.exercises.length} ${l10n.exercises} • ${routine.estimatedDuration.inMinutes}m',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

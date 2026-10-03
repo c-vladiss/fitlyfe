@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/providers/health_provider.dart';
 import 'package:fitlyfe_frontend/providers/progress_provider.dart';
 import 'package:fitlyfe_frontend/screens/home_page.dart';
@@ -125,7 +125,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       extendBody: true,
@@ -158,35 +158,35 @@ class _MainScreenState extends State<MainScreen> {
                   Icons.home_outlined,
                   Icons.home,
                   0,
-                  tp.translate('home'),
+                  l10n.home,
                   appState,
                 ),
                 _buildNavItem(
                   Icons.local_fire_department_outlined,
                   Icons.local_fire_department,
                   1,
-                  tp.translate('nutrition'),
+                  l10n.nutrition,
                   appState,
                 ),
                 _buildNavItem(
                   Icons.fitness_center_outlined,
                   Icons.fitness_center,
                   2,
-                  tp.translate('workout'),
+                  l10n.workout,
                   appState,
                 ),
                 _buildNavItem(
                   Icons.bar_chart_outlined,
                   Icons.bar_chart,
                   3,
-                  tp.translate('progress'),
+                  l10n.progress,
                   appState,
                 ),
                 _buildNavItem(
                   Icons.auto_awesome_outlined,
                   Icons.auto_awesome,
                   4,
-                  tp.translate('ai'),
+                  l10n.ai,
                   appState,
                 ),
               ],

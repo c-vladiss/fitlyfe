@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/progress_provider.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/models/progress.dart';
 
@@ -11,7 +11,7 @@ class GoalsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progressProvider = Provider.of<ProgressProvider>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     final goals = progressProvider.goals;
 
     final categories = ['Daily', 'Workout', 'Health', 'Habit', 'Challenge'];
@@ -31,7 +31,7 @@ class GoalsPage extends StatelessWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Text(tp.translate('goals'))),
+      appBar: AppBar(title: Text(l10n.goals)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(

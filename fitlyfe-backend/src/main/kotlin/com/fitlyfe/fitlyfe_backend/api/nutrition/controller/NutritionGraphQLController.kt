@@ -12,6 +12,7 @@ import com.fitlyfe.fitlyfe_backend.api.nutrition.service.NutritionService
 import com.fitlyfe.fitlyfe_backend.api.user.entity.UserEntity
 import com.fitlyfe.fitlyfe_backend.api.user.service.UserService
 import org.springframework.graphql.data.method.annotation.Argument
+import org.springframework.graphql.data.method.annotation.BatchMapping
 import org.springframework.graphql.data.method.annotation.MutationMapping
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
@@ -57,9 +58,10 @@ class NutritionGraphQLController(
 
     // ── Schema Mappings ─────────────────────────────────────────────────
 
-    @SchemaMapping(typeName = "DailyNutrition", field = "meals")
-    fun getMeals(dailyNutrition: DailyNutritionEntity): List<MealEntity> {
-        return nutritionService.getMealsForDailyNutrition(dailyNutrition)
+    // Batched so that e.g. weeklyNutrition loads all meals in one query instead of one per day
+    @BatchMapping(typeName = "DailyNutrition", field = "meals")
+    fun getMeals(days: List<DailyNutritionEntity>): List<List<MealEntity>> {
+        return nutritionService.getMealsForDays(days)
     }
 
     @SchemaMapping(typeName = "DailyNutrition", field = "goals")
@@ -72,9 +74,9 @@ class NutritionGraphQLController(
         return nutritionService.getMealTemplate(dailyNutrition.user, dailyNutrition)
     }
 
-    @SchemaMapping(typeName = "Meal", field = "entries")
-    fun getEntries(meal: MealEntity): List<MealEntryEntity> {
-        return nutritionService.getEntriesForMeal(meal)
+    @BatchMapping(typeName = "Meal", field = "entries")
+    fun getEntries(meals: List<MealEntity>): List<List<MealEntryEntity>> {
+        return nutritionService.getEntriesForMeals(meals)
     }
 
     // ── Template Management Mutations ───────────────────────────────────
@@ -202,9 +204,6 @@ class NutritionGraphQLController(
 
     // ── Helper ──────────────────────────────────────────────────────────
 
-    private fun getUserFromJwt(jwt: Jwt): UserEntity {
-        val supabaseId = jwt.getClaimAsString("sub")
-        val email = jwt.getClaimAsString("email")
-        return userService.getOrCreate(supabaseId, email)
-    }
+    private fun getUserFromJwt(jwt: Jwt): UserEntity =
+        userService.resolveUser(UUID.fromString(jwt.subject), jwt.getClaimAsString("email"))
 }

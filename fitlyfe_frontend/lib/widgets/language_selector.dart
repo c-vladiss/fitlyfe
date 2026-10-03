@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import '../providers/locale_provider.dart';
 
 class LanguageSelector extends StatelessWidget {
@@ -10,7 +11,8 @@ class LanguageSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<LocaleProvider>(context);
-    final currentLocale = provider.locale ?? const Locale('en');
+    final locales = LocaleProvider.supportedLocales;
+    final currentLocale = provider.locale;
 
     if (isGrid) {
       return GridView.builder(
@@ -20,10 +22,10 @@ class LanguageSelector extends StatelessWidget {
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
         ),
-        itemCount: L10n.all.length,
+        itemCount: locales.length,
         itemBuilder: (context, index) {
-          final locale = L10n.all[index];
-          final isSelected = currentLocale.languageCode == locale.languageCode;
+          final locale = locales[index];
+          final isSelected = currentLocale?.languageCode == locale.languageCode;
           return _buildGridItem(context, locale, isSelected, provider);
         },
       );
@@ -32,11 +34,15 @@ class LanguageSelector extends StatelessWidget {
     return ListView.separated(
       shrinkWrap: true,
       physics: const ClampingScrollPhysics(),
-      itemCount: L10n.all.length,
+      // First row follows the phone's language
+      itemCount: locales.length + 1,
       separatorBuilder: (ctx, i) => const Divider(height: 1),
       itemBuilder: (context, index) {
-        final locale = L10n.all[index];
-        final isSelected = currentLocale.languageCode == locale.languageCode;
+        if (index == 0) {
+          return _buildListItem(context, null, currentLocale == null, provider);
+        }
+        final locale = locales[index - 1];
+        final isSelected = currentLocale?.languageCode == locale.languageCode;
         return _buildListItem(context, locale, isSelected, provider);
       },
     );
@@ -44,7 +50,7 @@ class LanguageSelector extends StatelessWidget {
 
   Widget _buildListItem(
     BuildContext context,
-    Locale locale,
+    Locale? locale,
     bool isSelected,
     LocaleProvider provider,
   ) {
@@ -53,7 +59,9 @@ class LanguageSelector extends StatelessWidget {
         provider.setLocale(locale);
       },
       title: Text(
-        L10n.getNativeName(locale.languageCode),
+        locale == null
+            ? AppLocalizations.of(context).languageSystemDefault
+            : LocaleProvider.nativeName(locale),
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           color: isSelected ? Theme.of(context).primaryColor : null,
@@ -97,7 +105,7 @@ class LanguageSelector extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                L10n.getNativeName(locale.languageCode),
+                LocaleProvider.nativeName(locale),
                 style: TextStyle(
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected ? Theme.of(context).primaryColor : null,

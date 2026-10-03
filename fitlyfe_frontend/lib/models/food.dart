@@ -10,6 +10,8 @@ class Food {
   final DateTime dateAdded;
   final String? imageUrl;
   final String? mealType; // 'Breakfast', 'Lunch', 'Dinner', 'Snacks'
+  final String? brand;
+  final double? servingSizeG; // One serving in grams, if known
 
   Food({
     required this.id,
@@ -23,6 +25,8 @@ class Food {
     required this.dateAdded,
     this.imageUrl,
     this.mealType,
+    this.brand,
+    this.servingSizeG,
   });
 
   Food copyWith({
@@ -37,6 +41,8 @@ class Food {
     DateTime? dateAdded,
     String? imageUrl,
     String? mealType,
+    String? brand,
+    double? servingSizeG,
   }) {
     return Food(
       id: id ?? this.id,
@@ -50,6 +56,8 @@ class Food {
       dateAdded: dateAdded ?? this.dateAdded,
       imageUrl: imageUrl ?? this.imageUrl,
       mealType: mealType ?? this.mealType,
+      brand: brand ?? this.brand,
+      servingSizeG: servingSizeG ?? this.servingSizeG,
     );
   }
 }

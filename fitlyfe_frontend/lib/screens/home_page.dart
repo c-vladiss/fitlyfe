@@ -10,7 +10,8 @@ import 'package:fitlyfe_frontend/widgets/circular_progress_card.dart';
 import 'package:fitlyfe_frontend/widgets/goal_progress_card.dart';
 import 'package:fitlyfe_frontend/screens/profile_page.dart';
 
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
+import 'package:fitlyfe_frontend/l10n/l10n_extensions.dart';
 import 'package:fitlyfe_frontend/providers/health_provider.dart';
 import 'package:fitlyfe_frontend/providers/progress_provider.dart';
 
@@ -21,7 +22,7 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     final nutritionProvider = Provider.of<NutritionProvider>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     final user = appState.currentUser;
 
     final caloriesConsumed = nutritionProvider.todayCalories;
@@ -29,7 +30,7 @@ class HomePage extends StatelessWidget {
     final caloriesValueToShow = isCaloriesOver 
         ? (caloriesConsumed - user.dailyCalorieGoal).toInt() 
         : (user.dailyCalorieGoal - caloriesConsumed).toInt();
-    final caloriesLabel = isCaloriesOver ? 'Over Goal' : tp.translate('remaining');
+    final caloriesLabel = isCaloriesOver ? 'Over Goal' : l10n.remaining;
     final caloriesProgress = caloriesConsumed / user.dailyCalorieGoal;
 
     final healthProvider = Provider.of<HealthProvider>(context);
@@ -51,11 +52,11 @@ class HomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              _buildHeader(context, user, tp),
+              _buildHeader(context, user, l10n),
               const SizedBox(height: 16),
 
               if (!healthProvider.isAuthorized && !healthProvider.isLoading)
-                _buildHealthAuthBanner(context, healthProvider, tp),
+                _buildHealthAuthBanner(context, healthProvider, l10n),
 
               const SizedBox(height: 32),
 
@@ -63,7 +64,7 @@ class HomePage extends StatelessWidget {
               _buildProgressCards(
                 context,
                 appState,
-                tp,
+                l10n,
                 caloriesProgress,
                 caloriesValueToShow,
                 isCaloriesOver,
@@ -74,14 +75,14 @@ class HomePage extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Today's Goals (Now showing progress goals)
-              _buildDailyGoals(context, dailyGoals, tp),
+              _buildDailyGoals(context, dailyGoals, l10n),
               const SizedBox(height: 32),
 
               // My Primary Goal section
               _buildGoalSection(
                 context,
                 user.goal,
-                tp,
+                l10n,
                 workoutProvider.routines,
               ),
             ],
@@ -94,7 +95,7 @@ class HomePage extends StatelessWidget {
   Widget _buildHeader(
     BuildContext context,
     dynamic user,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -111,7 +112,7 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${tp.translate('welcome_back')}, ${user.name.split(' ').first}',
+              '${l10n.welcomeBack}, ${user.name.split(' ').first}',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -120,7 +121,7 @@ class HomePage extends StatelessWidget {
           children: [
             if (user.streakCount > 0)
               Tooltip(
-                message: tp.translate('streak_tooltip'),
+                message: l10n.streakTooltip,
                 preferBelow: true,
                 triggerMode: TooltipTriggerMode.tap,
                 child: Container(
@@ -187,7 +188,7 @@ class HomePage extends StatelessWidget {
   Widget _buildProgressCards(
     BuildContext context,
     AppState appState,
-    TranslationProvider tp,
+    AppLocalizations l10n,
     double caloriesProgress,
     int caloriesValue,
     bool isCaloriesOver,
@@ -210,7 +211,7 @@ class HomePage extends StatelessWidget {
               appState.setProgressMetricIndex(0); // Set to calories
               appState.setPageIndex(1); // Navigate to nutrition page
             },
-            actionText: tp.translate('view_meals'),
+            actionText: l10n.viewMeals,
           ),
         ),
         const SizedBox(width: 16),
@@ -218,7 +219,7 @@ class HomePage extends StatelessWidget {
           child: CircularProgressCard(
             value: stepsProgress,
             mainValue: steps,
-            label: tp.translate('steps'),
+            label: l10n.steps,
             unit: '',
             color: AppTheme.accentBlue,
             icon: Icons.directions_walk,
@@ -226,7 +227,7 @@ class HomePage extends StatelessWidget {
               appState.setProgressMetricIndex(1); // Set to steps
               appState.setPageIndex(3); // Navigate to progress page
             },
-            actionText: tp.translate('view_stats'),
+            actionText: l10n.viewStats,
           ),
         ),
       ],
@@ -236,13 +237,13 @@ class HomePage extends StatelessWidget {
   Widget _buildDailyGoals(
     BuildContext context,
     List<Goal> goals,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          tp.translate('daily_goals'),
+          l10n.dailyGoals,
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 16),
@@ -279,14 +280,12 @@ class HomePage extends StatelessWidget {
   Widget _buildGoalSection(
     BuildContext context,
     String goal,
-    TranslationProvider tp,
+    AppLocalizations l10n,
     List<WorkoutRoutine> routines,
   ) {
-    Map<String, dynamic> goalContent = _getGoalContent(goal, tp);
+    Map<String, dynamic> goalContent = _getGoalContent(goal, l10n);
     List<String> tips = goalContent['tips'];
-    final translatedGoal = tp.translate(
-      goal.toLowerCase().replaceAll(' ', '_'),
-    );
+    final translatedGoal = l10n.goalLabel(goal);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,7 +294,7 @@ class HomePage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              "${tp.translate('your_goal')}: $translatedGoal",
+              "${l10n.yourGoal}: $translatedGoal",
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: AppTheme.accentGreen,
                 fontWeight: FontWeight.bold,
@@ -308,7 +307,7 @@ class HomePage extends StatelessWidget {
 
         // Tips Section
         Text(
-          tp.translate('expert_tips'),
+          l10n.expertTips,
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 12),
@@ -338,7 +337,7 @@ class HomePage extends StatelessWidget {
 
         // Recommended Playlists
         Text(
-          tp.translate('recommended_for_you'),
+          l10n.recommendedForYou,
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 12),
@@ -426,7 +425,7 @@ class HomePage extends StatelessWidget {
   Widget _buildHealthAuthBanner(
     BuildContext context,
     HealthProvider healthProvider,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -447,14 +446,14 @@ class HomePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  tp.translate('connect_health_title'),
+                  l10n.connectHealthTitle,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
                 Text(
-                  tp.translate('connect_health_desc'),
+                  l10n.connectHealthDesc,
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.secondaryText,
@@ -465,7 +464,7 @@ class HomePage extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => healthProvider.requestAuthorization(),
-            child: Text(tp.translate('connect')),
+            child: Text(l10n.connect),
           ),
         ],
       ),
@@ -478,24 +477,24 @@ class HomePage extends StatelessWidget {
       case 'lose_weight':
         return {
           'tips': [
-            tp.translate('tip_deficit'),
-            tp.translate('tip_protein'),
-            tp.translate('tip_veggies'),
+            l10n.tipDeficit,
+            l10n.tipProtein,
+            l10n.tipVeggies,
           ],
           'exercises': [
             {
-              'name': tp.translate('ex_burpees_name'),
-              'desc': tp.translate('ex_burpees_desc'),
+              'name': l10n.exBurpeesName,
+              'desc': l10n.exBurpeesDesc,
               'icon': Icons.flash_on,
             },
             {
-              'name': tp.translate('ex_jump_rope_name'),
-              'desc': tp.translate('ex_jump_rope_desc'),
+              'name': l10n.exJumpRopeName,
+              'desc': l10n.exJumpRopeDesc,
               'icon': Icons.timer,
             },
             {
-              'name': tp.translate('ex_sprinting_name'),
-              'desc': tp.translate('ex_sprinting_desc'),
+              'name': l10n.exSprintingName,
+              'desc': l10n.exSprintingDesc,
               'icon': Icons.run_circle,
             },
           ],
@@ -503,24 +502,24 @@ class HomePage extends StatelessWidget {
       case 'build_muscle':
         return {
           'tips': [
-            tp.translate('tip_overload'),
-            tp.translate('tip_sleep'),
-            tp.translate('tip_protein_kg'),
+            l10n.tipOverload,
+            l10n.tipSleep,
+            l10n.tipProteinKg,
           ],
           'exercises': [
             {
-              'name': tp.translate('ex_squats_name'),
-              'desc': tp.translate('ex_squats_desc'),
+              'name': l10n.exSquatsName,
+              'desc': l10n.exSquatsDesc,
               'icon': Icons.fitness_center,
             },
             {
-              'name': tp.translate('ex_deadlifts_name'),
-              'desc': tp.translate('ex_deadlifts_desc'),
+              'name': l10n.exDeadliftsName,
+              'desc': l10n.exDeadliftsDesc,
               'icon': Icons.fitness_center,
             },
             {
-              'name': tp.translate('ex_bench_press_name'),
-              'desc': tp.translate('ex_bench_press_desc'),
+              'name': l10n.exBenchPressName,
+              'desc': l10n.exBenchPressDesc,
               'icon': Icons.fitness_center,
             },
           ],
@@ -528,24 +527,24 @@ class HomePage extends StatelessWidget {
       case 'improve_endurance':
         return {
           'tips': [
-            tp.translate('tip_mileage'),
-            tp.translate('tip_interval'),
-            tp.translate('tip_hydration'),
+            l10n.tipMileage,
+            l10n.tipInterval,
+            l10n.tipHydration,
           ],
           'exercises': [
             {
-              'name': tp.translate('ex_running_name'),
-              'desc': tp.translate('ex_running_desc'),
+              'name': l10n.exRunningName,
+              'desc': l10n.exRunningDesc,
               'icon': Icons.directions_run,
             },
             {
-              'name': tp.translate('ex_cycling_name'),
-              'desc': tp.translate('ex_cycling_desc'),
+              'name': l10n.exCyclingName,
+              'desc': l10n.exCyclingDesc,
               'icon': Icons.directions_bike,
             },
             {
-              'name': tp.translate('ex_swimming_name'),
-              'desc': tp.translate('ex_swimming_desc'),
+              'name': l10n.exSwimmingName,
+              'desc': l10n.exSwimmingDesc,
               'icon': Icons.pool,
             },
           ],
@@ -553,24 +552,24 @@ class HomePage extends StatelessWidget {
       default: // Stay Fit
         return {
           'tips': [
-            tp.translate('tip_holistic'),
-            tp.translate('tip_neat'),
-            tp.translate('tip_whole_foods'),
+            l10n.tipHolistic,
+            l10n.tipNeat,
+            l10n.tipWholeFoods,
           ],
           'exercises': [
             {
-              'name': tp.translate('ex_yoga_name'),
-              'desc': tp.translate('ex_yoga_desc'),
+              'name': l10n.exYogaName,
+              'desc': l10n.exYogaDesc,
               'icon': Icons.self_improvement,
             },
             {
-              'name': tp.translate('ex_plank_name'),
-              'desc': tp.translate('ex_plank_desc'),
+              'name': l10n.exPlankName,
+              'desc': l10n.exPlankDesc,
               'icon': Icons.accessibility_new,
             },
             {
-              'name': tp.translate('ex_hiking_name'),
-              'desc': tp.translate('ex_hiking_desc'),
+              'name': l10n.exHikingName,
+              'desc': l10n.exHikingDesc,
               'icon': Icons.terrain,
             },
           ],

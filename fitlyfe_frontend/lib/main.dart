@@ -8,7 +8,7 @@ import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
 import 'package:fitlyfe_frontend/providers/workout_provider.dart';
 import 'package:fitlyfe_frontend/providers/progress_provider.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/providers/locale_provider.dart';
 import 'package:fitlyfe_frontend/providers/health_provider.dart';
 import 'package:fitlyfe_frontend/config/app_config.dart';
 import 'package:fitlyfe_frontend/screens/welcome_screen.dart';
@@ -17,7 +17,6 @@ import 'package:fitlyfe_frontend/screens/main_screen.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/auth/google_auth_strategy.dart';
 import 'package:fitlyfe_frontend/widgets/premium_route.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 
 void main() async {
@@ -33,6 +32,8 @@ void main() async {
   await GoogleAuthStrategy.initialize();
 
   final appState = AppState();
+  final localeProvider = LocaleProvider();
+  await localeProvider.load();
 
   // Listen to auth changes ONCE (outside widget tree)
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -46,7 +47,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => NutritionProvider()),
         ChangeNotifierProvider(create: (_) => WorkoutProvider()),
         ChangeNotifierProvider(create: (_) => ProgressProvider()),
-        ChangeNotifierProvider(create: (_) => TranslationProvider()),
+        ChangeNotifierProvider.value(value: localeProvider),
         ChangeNotifierProvider(create: (_) => HealthProvider()),
       ],
       child: const FitLyfeApp(),
@@ -201,21 +202,17 @@ class _FitLyfeAppState extends State<FitLyfeApp> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppState>(
-      builder: (context, appState, _) {
+    return Consumer2<AppState, LocaleProvider>(
+      builder: (context, appState, localeProvider, _) {
         return MaterialApp(
           navigatorKey: _navigatorKey,
           title: 'FitLyfe',
           debugShowCheckedModeBanner: false,
-          locale: const Locale('en'),
+          // null follows the phone's language
+          locale: localeProvider.locale,
           theme: AppTheme.getTheme(appState.themeColor),
-          supportedLocales: const [Locale('en')],
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+          supportedLocales: LocaleProvider.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: _resolveInitialHome(appState),
         );
       },
