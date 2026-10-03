@@ -32,6 +32,10 @@ data class WorkoutSessionEntity(
 
     val notes: String? = null,
 
+    // Idempotency key chosen by the client, see LogWorkoutSessionInput.clientId
+    @Column(name = "client_id")
+    val clientId: UUID? = null,
+
     @Column(name = "created_at")
     val createdAt: LocalDateTime = LocalDateTime.now()
 )

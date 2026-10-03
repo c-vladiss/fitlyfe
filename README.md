@@ -37,7 +37,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed build and run commands.
 | [Nutrition Journal Service](#nutrition-journal-service) | Daily nutrition tracking & meal templates | ✅ Complete |
 | User Service | User management & profiles | ✅ Complete |
 | Auth Service | Supabase JWT authentication | ✅ Complete |
-| Workout Service | Exercise tracking | 🚧 Planned |
+| [Workout Service](#workout-service) | Workout logging with exercises & sets | ✅ Complete |
 
 ---
 
@@ -288,6 +288,30 @@ CREATE TABLE user_goals (
 | Initialize on first query | No separate "create day" action needed |
 | Keep empty meals | Track user behavior patterns |
 | Goals per actual meals | Accurate per-meal targets after deletions |
+
+---
+
+## Workout Service
+
+Stores finished workouts: a session with ordered exercises, each with numbered sets.
+
+### Endpoints
+
+| Operation | Description |
+|-----------|-------------|
+| `workoutSessions(limit)` | Most recent sessions first (default 10, max 100) |
+| `logWorkoutSession(input)` | Saves a finished session, its exercises and sets in one transaction |
+| `deleteWorkoutSession(id)` | Deletes one of the user's sessions |
+
+### Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Log a whole session at once | The app tracks the active workout locally and saves it on finish, so a half-finished workout never reaches the server |
+| Optional `clientId` idempotency key | The app retries after network errors; resending the same id returns the saved session instead of a duplicate |
+| Exercises matched by name, ignoring case | Free-text exercise names build up the shared catalog without duplicates (`uq_exercises_name_lower`) |
+| Timestamps returned in UTC with offset | Columns have no time zone; an explicit `Z` stops clients reading them as local time |
+| Offline queue in the app | Workouts that fail to save are kept on the device (`PendingWorkoutStore`) and retried on the next sync |
 
 ---
 
