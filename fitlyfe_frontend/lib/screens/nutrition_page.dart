@@ -234,9 +234,12 @@ class _NutritionPageState extends State<NutritionPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    l10n.micronutrients,
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Flexible(
+                    child: Text(
+                      l10n.micronutrients,
+                      style: Theme.of(context).textTheme.titleLarge,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
@@ -838,6 +841,8 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final provider = Provider.of<NutritionProvider>(context);
+    final foods = _visibleFoods(provider);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -954,10 +959,10 @@ class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
 
           // Results
           Expanded(
-            child: _showManualMenu
-                ? _buildManualMenu()
-                : (_filteredPresets.isEmpty)
-                    ? _buildEmptyState(l10n)
+            child: _isSearching && _selectedTab == _FoodTab.search
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.accentGreen))
+                : foods.isEmpty
+                    ? _buildEmptyState()
                     : ListView.separated(
                         itemCount: foods.length,
                         separatorBuilder: (context, index) => Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),

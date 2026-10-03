@@ -77,7 +77,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         const SizedBox(width: 12),
                         Flexible(
                           child: Text(
-                            tp.translate('workout_log_book'),
+                            l10n.workoutLogBook,
                             style: Theme.of(context).textTheme.displayMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -102,13 +102,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: _buildTabButton(l10n.logSession, 0),
-                    ),
+                    Expanded(child: _buildTabButton(l10n.logSession, 0)),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTabButton(l10n.restTimer, 1),
-                    ),
+                    Expanded(child: _buildTabButton(l10n.restTimer, 1)),
                   ],
                 ),
               ),
@@ -269,10 +265,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
           const SizedBox(height: 32),
 
           // Log Set Section
-          Text(
-            l10n.logSession,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text(l10n.logSession, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
 
           // Input Fields

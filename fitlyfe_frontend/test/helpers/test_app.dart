@@ -1,9 +1,9 @@
 import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/providers/health_provider.dart';
+import 'package:fitlyfe_frontend/providers/locale_provider.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
 import 'package:fitlyfe_frontend/providers/progress_provider.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
 import 'package:fitlyfe_frontend/providers/workout_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -57,7 +57,7 @@ class TestApp {
   );
   final WorkoutProvider workouts = WorkoutProvider();
   final ProgressProvider progress = ProgressProvider();
-  final TranslationProvider translations = TranslationProvider();
+  final LocaleProvider locales = LocaleProvider();
   final FakeHealthProvider health;
 
   TestApp({FakeHealthProvider? health})
@@ -70,7 +70,7 @@ class TestApp {
         ChangeNotifierProvider<NutritionProvider>.value(value: nutrition),
         ChangeNotifierProvider<WorkoutProvider>.value(value: workouts),
         ChangeNotifierProvider<ProgressProvider>.value(value: progress),
-        ChangeNotifierProvider<TranslationProvider>.value(value: translations),
+        ChangeNotifierProvider<LocaleProvider>.value(value: locales),
         ChangeNotifierProvider<HealthProvider>.value(value: health),
       ],
       child: MaterialApp(

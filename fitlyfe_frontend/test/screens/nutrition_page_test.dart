@@ -1,6 +1,6 @@
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
 import 'package:fitlyfe_frontend/screens/nutrition_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,9 +29,12 @@ void main() {
             create: (_) => AppState(graphQLService: graphQL),
           ),
           ChangeNotifierProvider.value(value: nutrition),
-          ChangeNotifierProvider(create: (_) => TranslationProvider()),
         ],
-        child: const MaterialApp(home: NutritionPage()),
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: NutritionPage(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

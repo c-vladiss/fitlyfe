@@ -180,7 +180,7 @@ class _ProgressPageState extends State<ProgressPage> {
                   _buildStatCard(
                     context,
                     l10n.avgCalories,
-                    (progressProvider.totalSteps > 0 ? 450 : 0).toString(),
+                    progressProvider.averageCaloriesBurned.round().toString(),
                     l10n.kcal,
                   ),
                 ],

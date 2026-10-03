@@ -1,9 +1,9 @@
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/graphql/operations/food.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/operations/nutrition.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/schema.graphql.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
 import 'package:fitlyfe_frontend/screens/food_details_page.dart';
 import 'package:fitlyfe_frontend/screens/nutrition_page.dart';
 import 'package:fitlyfe_frontend/services/graphql_service.dart';
@@ -99,11 +99,12 @@ void main() {
   }
 
   Widget app(Widget home) => MultiProvider(
-    providers: [
-      ChangeNotifierProvider.value(value: nutrition),
-      ChangeNotifierProvider(create: (_) => TranslationProvider()),
-    ],
-    child: MaterialApp(home: home),
+    providers: [ChangeNotifierProvider.value(value: nutrition)],
+    child: MaterialApp(
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: home,
+    ),
   );
 
   /// Lets the one-second "added" check-mark animation run out.

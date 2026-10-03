@@ -471,7 +471,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Map<String, dynamic> _getGoalContent(String goal, TranslationProvider tp) {
+  Map<String, dynamic> _getGoalContent(String goal, AppLocalizations l10n) {
     // Accept stored keys ("lose_weight") as well as labels ("Lose Weight")
     switch (goal.trim().toLowerCase().replaceAll(' ', '_')) {
       case 'lose_weight':

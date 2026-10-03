@@ -1,17 +1,17 @@
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/screens/ai_assistant_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets(
     'the AI coach is presented as coming soon, not as a working chat',
     (tester) async {
       await tester.pumpWidget(
-        ChangeNotifierProvider(
-          create: (_) => TranslationProvider(),
-          child: const MaterialApp(home: AIAssistantPage()),
+        const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: AIAssistantPage(),
         ),
       );
 
