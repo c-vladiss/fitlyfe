@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 
 /// Placeholder for the AI coach until it is backed by a real model.
 ///

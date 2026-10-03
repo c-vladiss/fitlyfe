@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'dart:async';
 
 class RestTimerWidget extends StatefulWidget {
@@ -26,7 +25,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
   }
 
   void _startTimer() {
-    final tp = Provider.of<TranslationProvider>(context, listen: false);
+    final l10n = AppLocalizations.of(context);
     if (_isRunning) {
       _pauseTimer();
       return;
@@ -46,7 +45,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
         // Show completion notification
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(tp.translate('rest_period_completed')),
+            content: Text(l10n.restPeriodCompleted),
             backgroundColor: AppTheme.accentGreen,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -90,7 +89,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -105,7 +104,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
               ),
               const SizedBox(width: 8),
               Text(
-                tp.translate('rest_timer'),
+                l10n.restTimer,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ],
@@ -144,7 +143,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
                     foregroundColor: AppTheme.backgroundColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Text(_isRunning ? tp.translate('pause') : tp.translate('start')),
+                  child: Text(_isRunning ? l10n.pause : l10n.start),
                 ),
               ),
               const SizedBox(width: 16),
@@ -156,7 +155,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
                     side: const BorderSide(color: AppTheme.cardBackground),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Text(tp.translate('reset')),
+                  child: Text(l10n.reset),
                 ),
               ),
             ],
@@ -165,7 +164,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
 
           // Preset Durations
           Text(
-            tp.translate('quick_select'),
+            l10n.quickSelect,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 16),

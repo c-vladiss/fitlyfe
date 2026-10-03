@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/screens/login_screen.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/widgets/premium_route.dart';
-import 'package:provider/provider.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: Stack(
         children: [
@@ -106,7 +105,7 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 60),
                         Text(
-                          tp.translate('welcome_title'),
+                          l10n.welcomeTitle,
                           style: Theme.of(context).textTheme.displayLarge
                               ?.copyWith(
                                 fontSize: 40,
@@ -117,7 +116,7 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          tp.translate('welcome_subtitle'),
+                          l10n.welcomeSubtitle,
                           style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(
                                 color: AppTheme.secondaryText,
@@ -148,7 +147,7 @@ class WelcomeScreen extends StatelessWidget {
                       elevation: 0,
                     ),
                     child: Text(
-                      tp.translate('get_started'),
+                      l10n.getStarted.toUpperCase(),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,

@@ -104,7 +104,7 @@ flutter pub run build_runner build --delete-conflicting-outputs
 - **GraphQL client**: `lib/services/graphql_service.dart` - uses generated types, injects Supabase JWT
 - **GraphQL types**: Generated from `lib/graphql/schema.graphql` via `graphql_codegen`
 - **Config**: Compile-time config via `--dart-define-from-file`, validated in `lib/config/app_config.dart`
-- **Localization**: Generated files in `lib/l10n/generated/`, supports 15+ languages
+- **Localization**: Flutter `gen-l10n` (config in `l10n.yaml`). Strings live in `lib/l10n/app_<locale>.arb` (template: `app_en.arb`); read them with `AppLocalizations.of(context).someKey`. Generated code is in `lib/l10n/generated/` (regenerate with `flutter gen-l10n`). Shipped languages: English, Spanish, French, German — every shipped ARB must translate every key (`test/l10n/arb_consistency_test.dart`). Partial translations for other languages wait in `l10n_incomplete/`. `LocaleProvider` stores the user's language choice (null = phone language)
 - **Screens**: `lib/screens/` - main app screens including onboarding flow
 - **Widgets**: `lib/widgets/` - reusable UI components
 

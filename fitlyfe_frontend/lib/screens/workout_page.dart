@@ -7,7 +7,7 @@ import 'package:fitlyfe_frontend/models/workout.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/screens/active_workout_page.dart';
 
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 
 class WorkoutPage extends StatefulWidget {
   const WorkoutPage({super.key});
@@ -53,7 +53,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   @override
   Widget build(BuildContext context) {
     final workoutProvider = Provider.of<WorkoutProvider>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       body: GestureDetector(
@@ -76,7 +76,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          tp.translate('workout_log_book'),
+                          l10n.workoutLogBook,
                           style: Theme.of(context).textTheme.displayMedium,
                         ),
                       ],
@@ -86,7 +86,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         left: 44,
                       ), // Icon size + spacing
                       child: Text(
-                        tp.translate('track_your_gains'),
+                        l10n.trackYourGains,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
@@ -100,11 +100,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _buildTabButton(tp.translate('log_session'), 0),
+                      child: _buildTabButton(l10n.logSession, 0),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildTabButton(tp.translate('rest_timer'), 1),
+                      child: _buildTabButton(l10n.restTimer, 1),
                     ),
                   ],
                 ),
@@ -114,7 +114,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
               // Content
               Expanded(
                 child: _selectedTab == 0
-                    ? _buildLogSessionTab(context, workoutProvider, tp)
+                    ? _buildLogSessionTab(context, workoutProvider, l10n)
                     : const RestTimerWidget(),
               ),
             ],
@@ -149,7 +149,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   Widget _buildLogSessionTab(
     BuildContext context,
     WorkoutProvider provider,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -236,12 +236,12 @@ class _WorkoutPageState extends State<WorkoutPage> {
 
           // Current Routine Header
           Text(
-            tp.translate('active_workout'),
+            l10n.activeWorkout,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
           if (provider.currentRoutine != null)
-            _buildRoutineCard(context, provider.currentRoutine!, tp),
+            _buildRoutineCard(context, provider.currentRoutine!, l10n),
           const SizedBox(height: 32),
 
           if (provider.pendingCount > 0) _buildPendingBanner(provider),
@@ -267,7 +267,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
 
           // Log Set Section
           Text(
-            tp.translate('log_session'),
+            l10n.logSession,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
@@ -296,8 +296,8 @@ class _WorkoutPageState extends State<WorkoutPage> {
                 TextField(
                   controller: _exerciseController,
                   decoration: InputDecoration(
-                    labelText: tp.translate('exercise_name'),
-                    hintText: tp.translate('enter_exercise_name'),
+                    labelText: l10n.exerciseName,
+                    hintText: l10n.enterExerciseName,
                     prefixIcon: const Icon(
                       Icons.fitness_center,
                       color: AppTheme.accentGreen,
@@ -321,7 +321,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                       child: TextField(
                         controller: _repsController,
                         decoration: InputDecoration(
-                          labelText: tp.translate('reps'),
+                          labelText: l10n.reps,
                           hintText: '12',
                           filled: true,
                           fillColor: AppTheme.backgroundColor.withValues(
@@ -454,7 +454,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                       backgroundColor: AppTheme.accentGreen,
                       foregroundColor: AppTheme.backgroundColor,
                     ),
-                    child: Text(tp.translate('log_set')),
+                    child: Text(l10n.logSet),
                   ),
                 ),
               ],
@@ -644,7 +644,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
   Widget _buildRoutineCard(
     BuildContext context,
     WorkoutRoutine routine,
-    TranslationProvider tp,
+    AppLocalizations l10n,
   ) {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -682,7 +682,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${routine.exercises.length} ${tp.translate('exercises')} • ${routine.estimatedDuration.inMinutes}m',
+                      '${routine.exercises.length} ${l10n.exercises} • ${routine.estimatedDuration.inMinutes}m',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
