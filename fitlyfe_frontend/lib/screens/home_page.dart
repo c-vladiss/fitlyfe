@@ -471,9 +471,10 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Map<String, dynamic> _getGoalContent(String goal, AppLocalizations l10n) {
-    switch (goal) {
-      case 'Lose Weight':
+  Map<String, dynamic> _getGoalContent(String goal, TranslationProvider tp) {
+    // Accept stored keys ("lose_weight") as well as labels ("Lose Weight")
+    switch (goal.trim().toLowerCase().replaceAll(' ', '_')) {
+      case 'lose_weight':
         return {
           'tips': [
             l10n.tipDeficit,
@@ -498,7 +499,7 @@ class HomePage extends StatelessWidget {
             },
           ],
         };
-      case 'Build Muscle':
+      case 'build_muscle':
         return {
           'tips': [
             l10n.tipOverload,
@@ -523,7 +524,7 @@ class HomePage extends StatelessWidget {
             },
           ],
         };
-      case 'Improve Endurance':
+      case 'improve_endurance':
         return {
           'tips': [
             l10n.tipMileage,

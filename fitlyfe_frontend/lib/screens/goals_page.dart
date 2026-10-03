@@ -103,6 +103,7 @@ class GoalsPage extends StatelessWidget {
       child: Row(
         children: [
           GestureDetector(
+            key: ValueKey('goal-check-${goal.id}'),
             onTap: () => provider.toggleGoalStatus(goal.id),
             child: Container(
               width: 24,

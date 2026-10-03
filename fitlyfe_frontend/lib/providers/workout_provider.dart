@@ -83,14 +83,16 @@ class WorkoutProvider extends ChangeNotifier {
   void initializeWorkoutsForGoal(String goal) {
     _routines.clear();
 
-    switch (goal) {
-      case 'Lose Weight':
+    // Goals are stored as keys ("lose_weight", onboarding and profile) and,
+    // in older data, as labels ("Lose Weight"); accept both.
+    switch (goal.trim().toLowerCase().replaceAll(' ', '_')) {
+      case 'lose_weight':
         _addWeightLossRoutines();
         break;
-      case 'Build Muscle':
+      case 'build_muscle':
         _addMuscleBuildingRoutines();
         break;
-      case 'Improve Endurance':
+      case 'improve_endurance':
         _addEnduranceRoutines();
         break;
       default:
