@@ -78,12 +78,18 @@ class NutritionService(
         return daily
     }
 
-    fun getMealsForDailyNutrition(dailyNutrition: DailyNutritionEntity): List<MealEntity> {
-        return mealRepository.findByDailyNutritionOrderByLoggedAtAsc(dailyNutrition)
+    /** Loads the meals of several days in one query, returned in the order of [days]. */
+    fun getMealsForDays(days: List<DailyNutritionEntity>): List<List<MealEntity>> {
+        val byDay = mealRepository.findByDailyNutritionIdInOrderByLoggedAtAsc(days.map { it.id })
+            .groupBy { it.dailyNutrition.id }
+        return days.map { byDay[it.id].orEmpty() }
     }
 
-    fun getEntriesForMeal(meal: MealEntity): List<MealEntryEntity> {
-        return mealEntryRepository.findByMeal(meal)
+    /** Loads the entries of several meals in one query, returned in the order of [meals]. */
+    fun getEntriesForMeals(meals: List<MealEntity>): List<List<MealEntryEntity>> {
+        val byMeal = mealEntryRepository.findByMealIdIn(meals.map { it.id })
+            .groupBy { it.meal.id }
+        return meals.map { byMeal[it.id].orEmpty() }
     }
 
     // ── Meal Type Template ──────────────────────────────────────────────

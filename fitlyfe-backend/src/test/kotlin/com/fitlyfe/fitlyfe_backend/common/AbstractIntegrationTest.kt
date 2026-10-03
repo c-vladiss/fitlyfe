@@ -5,20 +5,20 @@ import org.springframework.context.annotation.Import
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 @Import(TestSecurityConfig::class)
 abstract class AbstractIntegrationTest {
 
     companion object {
-        @Container
+        // One container for the whole test run. Spring caches the application
+        // context across test classes, so a per-class container would leave
+        // later classes pointing at a stopped database.
         val postgres = PostgreSQLContainer("postgres:16-alpine").apply {
             withDatabaseName("fitlyfe")
             withUsername("test")
             withPassword("test")
+            start()
         }
 
         @JvmStatic

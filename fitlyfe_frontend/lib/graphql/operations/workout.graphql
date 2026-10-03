@@ -1,31 +1,45 @@
-query WorkoutSessions($limit: Int) {
-  workoutSessions(limit: $limit) {
+fragment WorkoutSessionFields on WorkoutSession {
+  id
+  startedAt
+  endedAt
+  durationSeconds
+  workoutType
+  caloriesBurned
+  notes
+  exercises {
     id
-    startedAt
-    endedAt
-    durationSeconds
-    workoutType
-    caloriesBurned
-    notes
-    exercises {
+    exercise {
       id
-      exercise {
-        id
-        name
-        description
-        muscleGroup
-        equipment
-      }
-      orderIndex
-      notes
-      sets {
-        id
-        setNumber
-        reps
-        weightKg
-        durationSeconds
-        distanceMeters
-      }
+      name
+      description
+      muscleGroup
+      equipment
+    }
+    orderIndex
+    notes
+    sets {
+      id
+      setNumber
+      reps
+      weightKg
+      durationSeconds
+      distanceMeters
     }
   }
+}
+
+query WorkoutSessions($limit: Int) {
+  workoutSessions(limit: $limit) {
+    ...WorkoutSessionFields
+  }
+}
+
+mutation LogWorkoutSession($input: LogWorkoutSessionInput!) {
+  logWorkoutSession(input: $input) {
+    ...WorkoutSessionFields
+  }
+}
+
+mutation DeleteWorkoutSession($id: ID!) {
+  deleteWorkoutSession(id: $id)
 }

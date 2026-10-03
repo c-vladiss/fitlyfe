@@ -5,6 +5,7 @@ import 'package:fitlyfe_frontend/graphql/operations/auth.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/operations/user.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/operations/nutrition.graphql.dart';
 import 'package:fitlyfe_frontend/graphql/operations/food.graphql.dart';
+import 'package:fitlyfe_frontend/graphql/operations/workout.graphql.dart';
 
 /// Mock GraphQLService for testing providers.
 class MockGraphQLService extends Mock implements GraphQLService {}
@@ -69,6 +70,7 @@ class TestData {
     double? carbsG = 150.0,
     double? fatG = 50.0,
     int? waterMl = 2000,
+    List<Query$DailyNutrition$dailyNutrition$meals> meals = const [],
   }) {
     return Query$DailyNutrition$dailyNutrition(
       id: id,
@@ -85,7 +87,33 @@ class TestData {
         totalFatG: 65.0,
       ),
       mealTemplate: [],
-      meals: [],
+      meals: meals,
+    );
+  }
+
+  /// A logged meal with entries given as (entryId, foodName, grams, kcal).
+  static Query$DailyNutrition$dailyNutrition$meals meal(
+    String mealType,
+    List<(String, String, double, int)> entries,
+  ) {
+    return Query$DailyNutrition$dailyNutrition$meals(
+      id: 'meal-$mealType',
+      mealType: mealType,
+      entries: [
+        for (final (id, name, grams, kcal) in entries)
+          Query$DailyNutrition$dailyNutrition$meals$entries(
+            id: id,
+            foodEntry: Query$DailyNutrition$dailyNutrition$meals$entries$foodEntry(
+              id: 'food-$name',
+              name: name,
+            ),
+            quantityG: grams,
+            calories: kcal,
+            proteinG: 10,
+            carbsG: 20,
+            fatG: 5,
+          ),
+      ],
     );
   }
 
@@ -111,6 +139,58 @@ class TestData {
       ],
       total: total,
       hasMore: hasMore,
+    );
+  }
+  /// A saved workout session as returned by the backend (timestamps in UTC).
+  static Fragment$WorkoutSessionFields workoutSession({
+    String id = 'session-1',
+    String startedAt = '2025-05-01T08:00Z',
+    String? endedAt = '2025-05-01T09:00Z',
+    String? workoutType = 'Push Day',
+    int? caloriesBurned,
+    List<Fragment$WorkoutSessionFields$exercises>? exercises,
+  }) {
+    return Fragment$WorkoutSessionFields(
+      id: id,
+      startedAt: startedAt,
+      endedAt: endedAt,
+      durationSeconds: 3600,
+      workoutType: workoutType,
+      caloriesBurned: caloriesBurned,
+      exercises:
+          exercises ??
+          [
+            workoutExercise(
+              id: '$id-e0',
+              name: 'Bench Press',
+              sets: [(10, 60.0), (8, 70.0)],
+            ),
+          ],
+    );
+  }
+
+  static Fragment$WorkoutSessionFields$exercises workoutExercise({
+    required String id,
+    required String name,
+    int orderIndex = 0,
+    List<(int?, double?)> sets = const [],
+  }) {
+    return Fragment$WorkoutSessionFields$exercises(
+      id: id,
+      exercise: Fragment$WorkoutSessionFields$exercises$exercise(
+        id: 'catalog-$name',
+        name: name,
+      ),
+      orderIndex: orderIndex,
+      sets: [
+        for (final (i, (reps, weight)) in sets.indexed)
+          Fragment$WorkoutSessionFields$exercises$sets(
+            id: '$id-s$i',
+            setNumber: i + 1,
+            reps: reps,
+            weightKg: weight,
+          ),
+      ],
     );
   }
 }
