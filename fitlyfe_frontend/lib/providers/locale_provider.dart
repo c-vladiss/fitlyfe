@@ -1,100 +1,66 @@
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// The language the user picked for the app, remembered across restarts.
+///
+/// A null [locale] means "follow the phone's language"; Flutter then picks the
+/// best match from [AppLocalizations.supportedLocales] (English if none match).
 class LocaleProvider extends ChangeNotifier {
+  static const _prefsKey = 'language_code';
+
   Locale? _locale;
 
   Locale? get locale => _locale;
 
-  LocaleProvider() {
-    _loadLocale();
-  }
-
-  Future<void> _loadLocale() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? languageCode = prefs.getString('language_code');
-    
-    if (languageCode != null) {
-      // Check if the saved code is supported, otherwise default to system or null
-      final supported = L10n.all.firstWhere(
-        (element) => element.languageCode == languageCode,
-        orElse: () => L10n.all.first,
-      );
-      _locale = supported;
-      notifyListeners();
-    }
-  }
-
-  Future<void> setLocale(Locale locale) async {
-    if (!L10n.all.any((l) => l.languageCode == locale.languageCode)) return;
-    
-    _locale = locale;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language_code', locale.languageCode);
-    
-    notifyListeners();
-  }
-}
-
-class L10n {
-  static final all = [
-    const Locale('en'), // English
-    const Locale('es'), // Spanish
-    const Locale('de'), // German
-    const Locale('fr'), // French
-    const Locale('it'), // Italian
-    const Locale('pt'), // Portuguese
-    const Locale('ru'), // Russian
-    const Locale('zh'), // Chinese
-    const Locale('ja'), // Japanese
-    const Locale('ko'), // Korean
-    const Locale('hi'), // Hindi
-    const Locale('ar'), // Arabic
-    const Locale('tr'), // Turkish
-    const Locale('nl'), // Dutch
-    const Locale('pl'), // Polish
+  /// Supported locales with English first: Flutter falls back to the first
+  /// entry when the phone's language isn't supported, and the generated list
+  /// is alphabetical (which would make that German).
+  static final List<Locale> supportedLocales = [
+    const Locale('en'),
+    ...AppLocalizations.supportedLocales.where((l) => l.languageCode != 'en'),
   ];
 
-  static String getNativeName(String code) {
-    switch (code) {
-      case 'en': return 'English';
-      case 'es': return 'Español';
-      case 'de': return 'Deutsch';
-      case 'fr': return 'Français';
-      case 'it': return 'Italiano';
-      case 'pt': return 'Português';
-      case 'ru': return 'Русский';
-      case 'zh': return '中文';
-      case 'ja': return '日本語';
-      case 'ko': return '한국어';
-      case 'hi': return 'हिन्दी';
-      case 'ar': return 'العربية';
-      case 'tr': return 'Türkçe';
-      case 'nl': return 'Nederlands';
-      case 'pl': return 'Polski';
-      default: return code.toUpperCase();
+  /// Restores the saved choice. Unknown or no-longer-supported values fall
+  /// back to the system language.
+  Future<void> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final code = prefs.getString(_prefsKey);
+    _locale = _supported(code);
+    notifyListeners();
+  }
+
+  /// Switches the app language; null goes back to the system language.
+  Future<void> setLocale(Locale? locale) async {
+    final supported = _supported(locale?.languageCode);
+    if (locale != null && supported == null) {
+      throw ArgumentError.value(locale, 'locale', 'is not supported');
+    }
+    _locale = supported;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    if (supported == null) {
+      await prefs.remove(_prefsKey);
+    } else {
+      await prefs.setString(_prefsKey, supported.languageCode);
     }
   }
-  
-  static String getFlag(String code) {
-     // Optional: You could return flag emojis or asset paths here
-     switch (code) {
-      case 'en': return '🇺🇸';
-      case 'es': return '🇪🇸';
-      case 'de': return '🇩🇪';
-      case 'fr': return '🇫🇷';
-      case 'it': return '🇮🇹';
-      case 'pt': return 'PT'; 
-      case 'ru': return '🇷🇺';
-      case 'zh': return '🇨🇳';
-      case 'ja': return '🇯🇵';
-      case 'ko': return '🇰🇷';
-      case 'hi': return '🇮🇳';
-      case 'ar': return '🇸🇦';
-      case 'tr': return '🇹🇷';
-      case 'nl': return '🇳🇱';
-      case 'pl': return '🇵🇱';
-      default: return '🏳️';
+
+  Locale? _supported(String? languageCode) {
+    if (languageCode == null) return null;
+    for (final locale in supportedLocales) {
+      if (locale.languageCode == languageCode) return locale;
     }
+    return null;
   }
+
+  /// A language's name in that language, for the language picker.
+  static String nativeName(Locale locale) => switch (locale.languageCode) {
+        'en' => 'English',
+        'es' => 'Español',
+        'fr' => 'Français',
+        'de' => 'Deutsch',
+        _ => locale.languageCode,
+      };
 }

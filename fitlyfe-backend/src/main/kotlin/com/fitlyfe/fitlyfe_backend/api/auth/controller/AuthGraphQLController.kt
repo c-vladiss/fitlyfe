@@ -1,5 +1,6 @@
 package com.fitlyfe.fitlyfe_backend.api.auth.controller
 
+import com.fitlyfe.fitlyfe_backend.api.user.entity.UserProfileEntity
 import com.fitlyfe.fitlyfe_backend.api.user.service.UserService
 import org.springframework.graphql.data.method.annotation.MutationMapping
 import org.springframework.security.access.prepost.PreAuthorize
@@ -49,14 +50,15 @@ class AuthGraphQLController(
             }
         }
 
-        val (user, requiresOnboarding) = userService.syncUser(supabaseId, email, firstName, lastName)
+        val (user, requiresOnboarding, profile) = userService.syncUser(supabaseId, email, firstName, lastName)
 
         return SyncUserResult(
             id = user.id.toString(),
             email = user.email,
             firstName = user.firstName,
             lastName = user.lastName,
-            requiresOnboarding = requiresOnboarding
+            requiresOnboarding = requiresOnboarding,
+            profile = profile?.toProfileData()
         )
     }
 
@@ -74,5 +76,22 @@ data class SyncUserResult(
     val email: String,
     val firstName: String?,
     val lastName: String?,
-    val requiresOnboarding: Boolean
+    val requiresOnboarding: Boolean,
+    val profile: UserProfileData? = null
+)
+
+data class UserProfileData(
+    val heightCm: Double?,
+    val weightKg: Double?,
+    val dateOfBirth: String?,
+    val goal: String?,
+    val displayName: String?
+)
+
+fun UserProfileEntity.toProfileData() = UserProfileData(
+    heightCm = heightCm,
+    weightKg = weightKg,
+    dateOfBirth = dateOfBirth?.toString(),
+    goal = goal,
+    displayName = displayName
 )

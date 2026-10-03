@@ -1,18 +1,64 @@
 import 'package:flutter/foundation.dart';
+import 'package:fitlyfe_frontend/graphql/schema.graphql.dart';
 import 'package:fitlyfe_frontend/models/workout.dart';
+import 'package:fitlyfe_frontend/services/graphql_service.dart';
+import 'package:fitlyfe_frontend/services/pending_workout_store.dart';
+import 'package:uuid/uuid.dart';
+
+/// Outcome of finishing a workout.
+enum WorkoutSaveResult {
+  /// Saved to the backend.
+  saved,
+
+  /// Saving failed (e.g. offline); kept on the device and retried on next sync.
+  pending,
+
+  /// Nothing was logged, so there was nothing to save.
+  empty,
+}
 
 class WorkoutProvider extends ChangeNotifier {
+  final GraphQLService _graphQLService;
+  final PendingWorkoutStore _pendingStore;
+
   final List<WorkoutRoutine> _routines = [];
-  final List<WorkoutSession> _sessions = [];
   WorkoutRoutine? _currentRoutine;
   WorkoutSession? _activeSession;
 
+  /// Sessions saved on the backend, newest first.
+  List<WorkoutSession> _savedSessions = [];
+
+  /// Finished sessions not saved yet, as `Input$LogWorkoutSessionInput` JSON.
+  List<Map<String, dynamic>> _pendingInputs = [];
+  bool _pendingLoaded = false;
+
+  bool _isLoading = false;
+  String? _error;
+  Future<void>? _syncInFlight;
+
   List<WorkoutRoutine> get routines => _routines;
-  List<WorkoutSession> get sessions => _sessions;
   WorkoutRoutine? get currentRoutine => _currentRoutine;
   WorkoutSession? get activeSession => _activeSession;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  WorkoutProvider() {
+  /// All finished sessions, including ones still waiting to be saved, newest first.
+  List<WorkoutSession> get sessions {
+    final all = [
+      ..._pendingInputs.map(_sessionFromPendingInput),
+      ..._savedSessions,
+    ];
+    all.sort((a, b) => b.startTime.compareTo(a.startTime));
+    return all;
+  }
+
+  int get pendingCount => _pendingInputs.length;
+
+  WorkoutProvider({
+    GraphQLService? graphQLService,
+    PendingWorkoutStore? pendingStore,
+  }) : _graphQLService = graphQLService ?? GraphQLService(),
+       _pendingStore = pendingStore ?? SharedPreferencesPendingWorkoutStore() {
     _initializeDefaultRoutines();
   }
 
@@ -36,15 +82,17 @@ class WorkoutProvider extends ChangeNotifier {
 
   void initializeWorkoutsForGoal(String goal) {
     _routines.clear();
-    
-    switch (goal) {
-      case 'Lose Weight':
+
+    // Goals are stored as keys ("lose_weight", onboarding and profile) and,
+    // in older data, as labels ("Lose Weight"); accept both.
+    switch (goal.trim().toLowerCase().replaceAll(' ', '_')) {
+      case 'lose_weight':
         _addWeightLossRoutines();
         break;
-      case 'Build Muscle':
+      case 'build_muscle':
         _addMuscleBuildingRoutines();
         break;
-      case 'Improve Endurance':
+      case 'improve_endurance':
         _addEnduranceRoutines();
         break;
       default:
@@ -62,7 +110,8 @@ class WorkoutProvider extends ChangeNotifier {
       WorkoutRoutine(
         id: 'lw_1',
         name: 'Fat Burning HIIT',
-        description: 'High intensity interval training to maximize calorie burn.',
+        description:
+            'High intensity interval training to maximize calorie burn.',
         estimatedDuration: const Duration(minutes: 30),
         exercises: [
           Exercise(id: 'hiit1', name: 'Burpees', sets: []),
@@ -128,7 +177,8 @@ class WorkoutProvider extends ChangeNotifier {
       WorkoutRoutine(
         id: 'bm_2',
         name: 'Pull Day (Back/Biceps)',
-        description: 'Build a thick and wide back with these pulling movements.',
+        description:
+            'Build a thick and wide back with these pulling movements.',
         estimatedDuration: const Duration(minutes: 60),
         exercises: [
           Exercise(id: 'pull1', name: 'Lat Pulldowns', sets: []),
@@ -183,7 +233,8 @@ class WorkoutProvider extends ChangeNotifier {
       WorkoutRoutine(
         id: 'ie_1',
         name: 'Stamina Power Circuit',
-        description: 'Long sets with short rest periods to build lasting endurance.',
+        description:
+            'Long sets with short rest periods to build lasting endurance.',
         estimatedDuration: const Duration(minutes: 50),
         exercises: [
           Exercise(id: 'end1', name: 'Jump Rope (3 mins)', sets: []),
@@ -195,7 +246,8 @@ class WorkoutProvider extends ChangeNotifier {
       WorkoutRoutine(
         id: 'ie_2',
         name: 'Bodyweight Marathon',
-        description: 'High repetition movements to improve metabolic conditioning.',
+        description:
+            'High repetition movements to improve metabolic conditioning.',
         estimatedDuration: const Duration(minutes: 45),
         exercises: [
           Exercise(id: 'end5', name: 'Air Squats (50 reps)', sets: []),
@@ -292,97 +344,292 @@ class WorkoutProvider extends ChangeNotifier {
 
   void startSession(WorkoutRoutine routine) {
     _activeSession = WorkoutSession(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       routineId: routine.id,
       routineName: routine.name,
       startTime: DateTime.now(),
-      exercises: routine.exercises.map((e) => Exercise(
-        id: e.id,
-        name: e.name,
-        sets: [],
-        notes: e.notes,
-      )).toList(),
+      exercises: routine.exercises
+          .map(
+            (e) => Exercise(id: e.id, name: e.name, sets: [], notes: e.notes),
+          )
+          .toList(),
     );
     notifyListeners();
   }
 
-  void endSession() {
-    if (_activeSession != null) {
-      final endedSession = WorkoutSession(
-        id: _activeSession!.id,
-        routineId: _activeSession!.routineId,
-        routineName: _activeSession!.routineName,
-        startTime: _activeSession!.startTime,
-        endTime: DateTime.now(),
-        exercises: _activeSession!.exercises,
-        caloriesBurned: _activeSession!.caloriesBurned,
-      );
-      _sessions.add(endedSession);
-      _activeSession = null;
+  /// Drops the active session without saving it.
+  void discardSession() {
+    _activeSession = null;
+    notifyListeners();
+  }
+
+  /// Finishes the active session and saves it to the backend.
+  ///
+  /// Exercises without sets are left out. If saving fails the session is kept
+  /// on the device and retried by [syncSessions], so a workout is never lost.
+  Future<WorkoutSaveResult> endSession() async {
+    final session = _activeSession;
+    if (session == null) return WorkoutSaveResult.empty;
+    _activeSession = null;
+
+    final exercises = session.exercises
+        .where((e) => e.sets.isNotEmpty)
+        .toList();
+    if (exercises.isEmpty) {
       notifyListeners();
+      return WorkoutSaveResult.empty;
+    }
+
+    final input = Input$LogWorkoutSessionInput(
+      // The local id doubles as the idempotency key, so retries can't duplicate it
+      clientId: session.id,
+      startedAt: session.startTime.toUtc().toIso8601String(),
+      endedAt: DateTime.now().toUtc().toIso8601String(),
+      workoutType: session.routineName,
+      caloriesBurned: session.caloriesBurned?.round(),
+      exercises: exercises
+          .map(
+            (e) => Input$LoggedExerciseInput(
+              name: e.name,
+              notes: e.notes,
+              sets: e.sets
+                  .map(
+                    (s) =>
+                        Input$LoggedSetInput(reps: s.reps, weightKg: s.weight),
+                  )
+                  .toList(),
+            ),
+          )
+          .toList(),
+    );
+
+    await _ensurePendingLoaded();
+    _pendingInputs = [..._pendingInputs, input.toJson()];
+    await _pendingStore.save(_pendingInputs);
+    notifyListeners();
+
+    await syncSessions();
+    return _pendingInputs.any((p) => p['clientId'] == session.id)
+        ? WorkoutSaveResult.pending
+        : WorkoutSaveResult.saved;
+  }
+
+  /// Loads the session history from the backend, after first retrying any
+  /// sessions that are still waiting to be saved.
+  Future<void> loadSessions() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await syncSessions();
+      final remote = await _graphQLService.getWorkoutSessions();
+      _savedSessions = remote.map(_sessionFromRemote).toList();
+      _error = null;
+    } catch (e) {
+      debugPrint('Error loading workout sessions: $e');
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Uploads sessions waiting to be saved, oldest first. Stops at the first
+  /// failure so their order is kept. Concurrent calls share one upload.
+  Future<void> syncSessions() =>
+      _syncInFlight ??= _uploadPending().whenComplete(() {
+        _syncInFlight = null;
+      });
+
+  Future<void> _uploadPending() async {
+    await _ensurePendingLoaded();
+    while (_pendingInputs.isNotEmpty) {
+      final next = _pendingInputs.first;
+      try {
+        final saved = await _graphQLService.logWorkoutSession(
+          Input$LogWorkoutSessionInput.fromJson(next),
+        );
+        _pendingInputs = _pendingInputs.skip(1).toList();
+        await _pendingStore.save(_pendingInputs);
+        _savedSessions = [
+          _sessionFromRemote(saved),
+          ..._savedSessions.where((s) => s.id != saved.id),
+        ];
+        _error = null;
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Could not save workout session, will retry later: $e');
+        _error = e.toString();
+        notifyListeners();
+        return;
+      }
+    }
+  }
+
+  Future<void> _ensurePendingLoaded() async {
+    if (_pendingLoaded) return;
+    final stored = await _pendingStore.load();
+    // Keep anything queued while the store was loading
+    _pendingInputs = [...stored, ..._pendingInputs];
+    _pendingLoaded = true;
+  }
+
+  /// Deletes a saved session, or drops one that was never saved.
+  Future<bool> deleteSession(String id) async {
+    await _ensurePendingLoaded();
+    final pendingIndex = _pendingInputs.indexWhere((p) => p['clientId'] == id);
+    if (pendingIndex != -1) {
+      _pendingInputs = [..._pendingInputs]..removeAt(pendingIndex);
+      await _pendingStore.save(_pendingInputs);
+      notifyListeners();
+      return true;
+    }
+
+    try {
+      final deleted = await _graphQLService.deleteWorkoutSession(id);
+      if (deleted) {
+        _savedSessions = _savedSessions.where((s) => s.id != id).toList();
+        notifyListeners();
+      }
+      return deleted;
+    } catch (e) {
+      debugPrint('Error deleting workout session: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
     }
   }
 
   void addExerciseToSession(String exerciseName) {
-    if (_activeSession != null) {
-      final newExercise = Exercise(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: exerciseName,
-        sets: [],
-      );
-      final updatedExercises = List<Exercise>.from(_activeSession!.exercises)
-        ..add(newExercise);
-      _activeSession = WorkoutSession(
-        id: _activeSession!.id,
-        routineId: _activeSession!.routineId,
-        routineName: _activeSession!.routineName,
-        startTime: _activeSession!.startTime,
-        endTime: _activeSession!.endTime,
-        exercises: updatedExercises,
-        caloriesBurned: _activeSession!.caloriesBurned,
-      );
-      notifyListeners();
-    }
+    final session = _activeSession;
+    if (session == null) return;
+    _activeSession = _copySession(
+      session,
+      exercises: [
+        ...session.exercises,
+        Exercise(id: const Uuid().v4(), name: exerciseName, sets: []),
+      ],
+    );
+    notifyListeners();
   }
 
   void addSetToExercise(String exerciseId, int reps, double? weight) {
-    if (_activeSession != null) {
-      final exerciseIndex = _activeSession!.exercises.indexWhere(
-        (e) => e.id == exerciseId,
-      );
-      if (exerciseIndex != -1) {
-        final exercise = _activeSession!.exercises[exerciseIndex];
-        final newSet = Set(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          reps: reps,
-          weight: weight,
-        );
-        final updatedSets = List<Set>.from(exercise.sets)..add(newSet);
-        final updatedExercise = Exercise(
-          id: exercise.id,
-          name: exercise.name,
-          sets: updatedSets,
-          notes: exercise.notes,
-        );
-        final updatedExercises = List<Exercise>.from(_activeSession!.exercises);
-        updatedExercises[exerciseIndex] = updatedExercise;
-        _activeSession = WorkoutSession(
-          id: _activeSession!.id,
-          routineId: _activeSession!.routineId,
-          routineName: _activeSession!.routineName,
-          startTime: _activeSession!.startTime,
-          endTime: _activeSession!.endTime,
-          exercises: updatedExercises,
-          caloriesBurned: _activeSession!.caloriesBurned,
-        );
-        notifyListeners();
-      }
-    }
+    _updateExercise(
+      exerciseId,
+      (exercise) => [
+        ...exercise.sets,
+        Set(id: const Uuid().v4(), reps: reps, weight: weight),
+      ],
+    );
+  }
+
+  void removeSetFromExercise(String exerciseId, String setId) {
+    _updateExercise(
+      exerciseId,
+      (exercise) => exercise.sets.where((s) => s.id != setId).toList(),
+    );
+  }
+
+  void _updateExercise(
+    String exerciseId,
+    List<Set> Function(Exercise) newSets,
+  ) {
+    final session = _activeSession;
+    if (session == null) return;
+    final index = session.exercises.indexWhere((e) => e.id == exerciseId);
+    if (index == -1) return;
+
+    final exercise = session.exercises[index];
+    final exercises = [...session.exercises];
+    exercises[index] = Exercise(
+      id: exercise.id,
+      name: exercise.name,
+      sets: newSets(exercise),
+      notes: exercise.notes,
+    );
+    _activeSession = _copySession(session, exercises: exercises);
+    notifyListeners();
+  }
+
+  WorkoutSession _copySession(
+    WorkoutSession s, {
+    required List<Exercise> exercises,
+  }) {
+    return WorkoutSession(
+      id: s.id,
+      routineId: s.routineId,
+      routineName: s.routineName,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      exercises: exercises,
+      caloriesBurned: s.caloriesBurned,
+    );
   }
 
   void addRoutine(WorkoutRoutine routine) {
     _routines.add(routine);
     notifyListeners();
   }
-}
 
+  // ── Mapping ─────────────────────────────────────────────────────────────
+
+  static WorkoutSession _sessionFromRemote(WorkoutSessionResult remote) {
+    final start = _parseTimestamp(remote.startedAt) ?? DateTime.now();
+    return WorkoutSession(
+      id: remote.id,
+      routineId: '',
+      routineName: remote.workoutType ?? 'Workout',
+      startTime: start,
+      endTime: _parseTimestamp(remote.endedAt),
+      caloriesBurned: remote.caloriesBurned?.toDouble(),
+      exercises: remote.exercises
+          .map(
+            (e) => Exercise(
+              id: e.id,
+              name: e.exercise.name,
+              notes: e.notes,
+              sets: e.sets
+                  .map(
+                    (s) => Set(id: s.id, reps: s.reps ?? 0, weight: s.weightKg),
+                  )
+                  .toList(),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  static WorkoutSession _sessionFromPendingInput(Map<String, dynamic> json) {
+    final input = Input$LogWorkoutSessionInput.fromJson(json);
+    return WorkoutSession(
+      id: input.clientId ?? '',
+      routineId: '',
+      routineName: input.workoutType ?? 'Workout',
+      startTime: DateTime.parse(input.startedAt).toLocal(),
+      endTime: DateTime.parse(input.endedAt).toLocal(),
+      caloriesBurned: input.caloriesBurned?.toDouble(),
+      isSynced: false,
+      exercises: input.exercises.indexed
+          .map(
+            (entry) => Exercise(
+              id: '${input.clientId}-${entry.$1}',
+              name: entry.$2.name,
+              notes: entry.$2.notes,
+              sets: entry.$2.sets.indexed
+                  .map(
+                    (set) => Set(
+                      id: '${input.clientId}-${entry.$1}-${set.$1}',
+                      reps: set.$2.reps ?? 0,
+                      weight: set.$2.weightKg,
+                    ),
+                  )
+                  .toList(),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  /// The backend returns UTC timestamps; show them in local time.
+  static DateTime? _parseTimestamp(String? value) =>
+      value == null ? null : DateTime.tryParse(value)?.toLocal();
+}

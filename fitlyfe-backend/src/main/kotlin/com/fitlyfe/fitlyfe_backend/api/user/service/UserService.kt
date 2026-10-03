@@ -1,18 +1,25 @@
 package com.fitlyfe.fitlyfe_backend.api.user.service
 
 import com.fitlyfe.fitlyfe_backend.api.user.entity.UserEntity
+import com.fitlyfe.fitlyfe_backend.api.user.entity.UserGoalsEntity
+import com.fitlyfe.fitlyfe_backend.api.user.entity.UserProfileEntity
+import com.fitlyfe.fitlyfe_backend.api.user.repository.UserGoalsRepository
+import com.fitlyfe.fitlyfe_backend.api.user.repository.UserProfileRepository
 import com.fitlyfe.fitlyfe_backend.api.user.repository.UserRepository
 import jakarta.persistence.EntityNotFoundException
 import org.springframework.stereotype.Service
+import java.time.LocalDate
 import java.util.UUID
 
 @Service
 class UserService(
     private val userRepository: UserRepository,
+    private val userProfileRepository: UserProfileRepository,
+    private val userGoalsRepository: UserGoalsRepository,
 ) {
     /**
      * Upserts a user by their Supabase ID.
-     * Returns a Pair of (UserEntity, requiresOnboarding).
+     * Returns a Triple of (UserEntity, requiresOnboarding, UserProfileEntity?).
      * requiresOnboarding is true when onboardingCompleted is false.
      */
     fun syncUser(
@@ -20,8 +27,11 @@ class UserService(
         email: String,
         firstName: String? = null,
         lastName: String? = null,
-    ): Pair<UserEntity, Boolean> {
+    ): Triple<UserEntity, Boolean, UserProfileEntity?> {
         val existing = userRepository.findBySupabaseId(supabaseId)
+
+        val user: UserEntity
+        val requiresOnboarding: Boolean
 
         if (existing != null) {
             val updated = existing.copyForUpdate(
@@ -29,16 +39,21 @@ class UserService(
                 firstName = firstName ?: existing.firstName,
                 lastName = lastName ?: existing.lastName
             )
-            return Pair(userRepository.save(updated), !existing.onboardingCompleted)
+            user = userRepository.save(updated)
+            requiresOnboarding = !existing.onboardingCompleted
+        } else {
+            val newUser = UserEntity(
+                supabaseId = supabaseId,
+                email = email,
+                firstName = firstName,
+                lastName = lastName,
+            )
+            user = userRepository.save(newUser)
+            requiresOnboarding = true
         }
 
-        val newUser = UserEntity(
-            supabaseId = supabaseId,
-            email = email,
-            firstName = firstName,
-            lastName = lastName,
-        )
-        return Pair(userRepository.save(newUser), true)
+        val profile = userProfileRepository.findByUserId(user.id)
+        return Triple(user, requiresOnboarding, profile)
     }
 
     fun markOnboardingComplete(supabaseId: UUID) {
@@ -47,12 +62,98 @@ class UserService(
         userRepository.save(user.copyForUpdate(onboardingCompleted = true))
     }
 
-    fun getOrCreate(supabaseId: String, email: String): UserEntity {
-        val (user, _) = syncUser(UUID.fromString(supabaseId), email)
+    fun findBySupabaseId(supabaseId: UUID): UserEntity {
+        return userRepository.findBySupabaseId(supabaseId)
+            ?: throw EntityNotFoundException("User not found for supabaseId: $supabaseId")
+    }
+
+    fun upsertProfile(
+        userId: UUID,
+        displayName: String? = null,
+        heightCm: Double? = null,
+        weightKg: Double? = null,
+        dateOfBirth: LocalDate? = null,
+        goal: String? = null,
+    ): UserProfileEntity {
+        val existing = userProfileRepository.findByUserId(userId)
+
+        val profile = if (existing != null) {
+            existing.copyForUpdate(
+                displayName = displayName ?: existing.displayName,
+                heightCm = heightCm ?: existing.heightCm,
+                weightKg = weightKg ?: existing.weightKg,
+                dateOfBirth = dateOfBirth ?: existing.dateOfBirth,
+                goal = goal ?: existing.goal,
+            )
+        } else {
+            val user = userRepository.findById(userId).orElseThrow {
+                EntityNotFoundException("User not found for id: $userId")
+            }
+            UserProfileEntity(
+                userId = userId,
+                user = user,
+                displayName = displayName,
+                heightCm = heightCm,
+                weightKg = weightKg,
+                dateOfBirth = dateOfBirth,
+                goal = goal,
+            )
+        }
+
+        return userProfileRepository.save(profile)
+    }
+
+    fun getProfile(userId: UUID): UserProfileEntity? {
+        return userProfileRepository.findByUserId(userId)
+    }
+
+    /**
+     * Resolves the user behind an authenticated request.
+     *
+     * This is a plain lookup for existing users, so ordinary queries don't
+     * write to the database. The row is only created when a request arrives
+     * before the client has called syncUser.
+     */
+    fun resolveUser(supabaseId: UUID, email: String?): UserEntity {
+        userRepository.findBySupabaseId(supabaseId)?.let { return it }
+        requireNotNull(email) { "email claim missing from JWT" }
+        val (user, _, _) = syncUser(supabaseId, email)
         return user
     }
 
     fun getUserById(userId: String): UserEntity? {
         return userRepository.findById(UUID.fromString(userId)).orElse(null)
+    }
+
+    // ── User Goals ──────────────────────────────────────────────────────
+
+    fun getOrCreateGoals(user: UserEntity): UserGoalsEntity {
+        val existing = userGoalsRepository.findByUserId(user.id)
+        if (existing != null) return existing
+
+        val newGoals = UserGoalsEntity(
+            userId = user.id,
+            user = user
+        )
+        return userGoalsRepository.save(newGoals)
+    }
+
+    fun updateGoals(
+        user: UserEntity,
+        dailyCalories: Int? = null,
+        dailyProteinG: Double? = null,
+        dailyCarbsG: Double? = null,
+        dailyFatG: Double? = null,
+        goalWeightKg: Double? = null
+    ): UserGoalsEntity {
+        val existing = getOrCreateGoals(user)
+        val updated = existing.copyForUpdate(
+            dailyCalories = dailyCalories ?: existing.dailyCalories,
+            dailyProteinG = dailyProteinG ?: existing.dailyProteinG,
+            dailyCarbsG = dailyCarbsG ?: existing.dailyCarbsG,
+            dailyFatG = dailyFatG ?: existing.dailyFatG,
+            goalWeightKg = goalWeightKg ?: existing.goalWeightKg
+        )
+        return userGoalsRepository.save(updated)
     }
 }

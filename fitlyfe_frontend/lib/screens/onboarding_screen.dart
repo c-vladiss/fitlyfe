@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
-import 'package:fitlyfe_frontend/screens/main_screen.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/providers/workout_provider.dart';
 import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
-import 'package:fitlyfe_frontend/providers/locale_provider.dart';
+import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -24,26 +24,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   double _weight = 70;
   String _selectedGoal = 'stay_fit'; // Matches key in ARB mapping
   DateTime _selectedDate = DateTime(2000, 1, 1);
-  final TextEditingController _languageSearchController =
-      TextEditingController();
 
-  // Mapped to Locale codes
-  final List<Map<String, dynamic>> _languages = [
-    {'label': 'Chinese (中文)', 'code': 'zh', 'flag': '🇨🇳'},
-    {'label': 'English', 'code': 'en', 'flag': '🇺🇸'},
-    {'label': 'Español', 'code': 'es', 'flag': '🇪🇸'},
-    {'label': 'Deutsch', 'code': 'de', 'flag': '🇩🇪'},
-    {'label': 'Français', 'code': 'fr', 'flag': '🇫🇷'},
-    {'label': 'Portuguese (Português)', 'code': 'pt', 'flag': '🇵🇹'},
-    {'label': 'Italian (Italiano)', 'code': 'it', 'flag': '🇮🇹'},
-    {'label': 'Russian (Русский)', 'code': 'ru', 'flag': '🇷🇺'},
-    {'label': 'Japanese (日本語)', 'code': 'ja', 'flag': '🇯🇵'},
-    {'label': 'Korean (한국어)', 'code': 'ko', 'flag': '🇰🇷'},
-    {'label': 'Hindi (हिन्दी)', 'code': 'hi', 'flag': '🇮🇳'},
-    {'label': 'Arabic (العربية)', 'code': 'ar', 'flag': '🇸🇦'},
-    {'label': 'Turkish (Türkçe)', 'code': 'tr', 'flag': '🇹🇷'},
-    {'label': 'Dutch (Nederlands)', 'code': 'nl', 'flag': '🇳🇱'},
-    {'label': 'Polish (Polski)', 'code': 'pl', 'flag': '🇵🇱'},
+  final List<MealInfo> _meals = [
+    MealInfo('Breakfast', '☕', 600),
+    MealInfo('Lunch', '🍲', 800),
+    MealInfo('Dinner', '🥗', 500),
+    MealInfo('Snacks', '🍎', 100),
   ];
 
   final List<String> _goals = [
@@ -70,6 +56,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubic,
       );
+    } else {
+      // On the first page, back = cancel sign-up → sign out.
+      // _onAppStateChanged in main.dart will navigate back to WelcomeScreen.
+      Supabase.instance.client.auth.signOut();
     }
   }
 
@@ -84,7 +74,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       age--;
     }
 
-    // Update user profile with onboarding data
+    // Update user profile with onboarding data (also syncs to backend)
     appState.updateUserProfile(
       name: _nameController.text.isEmpty
           ? 'Fitness User'
@@ -93,7 +83,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       weight: _weight,
       age: age,
       goal: _selectedGoal,
+      dateOfBirth: _selectedDate,
     );
+
+    // Set default meals in NutritionProvider
+    Provider.of<NutritionProvider>(
+      context,
+      listen: false,
+    ).setDefaultMeals(_meals);
 
     // Initialize workouts based on the selected goal immediately
     Provider.of<WorkoutProvider>(
@@ -101,18 +98,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       listen: false,
     ).initializeWorkoutsForGoal(_selectedGoal);
 
-    // Navigate to MainScreen and remove onboarding from stack
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const MainScreen()),
-      (route) => false,
-    );
+    // Mark onboarding complete — AppState notifies listeners, which triggers
+    // _onAppStateChanged in main.dart to navigate to MainScreen.
+    appState.completeOnboarding();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
-    _languageSearchController.dispose();
     super.dispose();
   }
 
@@ -133,7 +127,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.accentGreen.withOpacity(0.05),
+                color: AppTheme.accentGreen.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -199,11 +193,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     },
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      _buildLanguageStep(l10n),
                       _buildNameStep(l10n),
                       _buildDOBStep(l10n),
                       _buildHeightStep(l10n),
                       _buildWeightStep(l10n),
+                      _buildMealsStep(l10n),
                       _buildGoalStep(l10n),
                     ],
                   ),
@@ -271,110 +265,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildLanguageStep(AppLocalizations l10n) {
-    final filteredLanguages = _languages.where((lang) {
-      final query = _languageSearchController.text.toLowerCase();
-      return lang['label'].toString().toLowerCase().contains(query);
-    }).toList();
-
-    return _buildStepContainer(
-      l10n.languageTitle,
-      l10n.languageSubtitle,
-      Column(
-        children: [
-          TextField(
-            controller: _languageSearchController,
-            onChanged: (value) => setState(() {}),
-            style: const TextStyle(color: AppTheme.primaryText),
-            decoration: InputDecoration(
-              hintText: l10n.searchLanguage,
-              hintStyle: TextStyle(
-                color: AppTheme.secondaryText.withOpacity(0.5),
-              ),
-              prefixIcon: const Icon(
-                Icons.search,
-                color: AppTheme.secondaryText,
-              ),
-              filled: true,
-              fillColor: AppTheme.cardBackground,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: ListView.builder(
-              itemCount: filteredLanguages.length,
-              itemBuilder: (context, index) {
-                final lang = filteredLanguages[index];
-                return _buildLanguageOption(
-                  lang['label'],
-                  lang['code'],
-                  lang['flag'],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLanguageOption(String label, String code, String flag) {
-    final localeProvider = Provider.of<LocaleProvider>(context);
-    final currentCode = localeProvider.locale?.languageCode ?? 'en';
-    bool isSelected = currentCode == code;
-
-    return GestureDetector(
-      onTap: () {
-        localeProvider.setLocale(Locale(code));
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.accentGreen : AppTheme.cardBackground,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppTheme.accentGreen.withOpacity(0.3),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : [],
-        ),
-        child: Row(
-          children: [
-            Text(flag, style: const TextStyle(fontSize: 24)),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? AppTheme.backgroundColor
-                    : AppTheme.primaryText,
-              ),
-            ),
-            const Spacer(),
-            if (isSelected)
-              const Icon(Icons.check_circle, color: AppTheme.backgroundColor),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildNameStep(AppLocalizations l10n) {
     return _buildStepContainer(
       l10n.nameTitle,
@@ -388,7 +278,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           decoration: InputDecoration(
             hintText: l10n.yourName,
             hintStyle: TextStyle(
-              color: AppTheme.secondaryText.withOpacity(0.3),
+              color: AppTheme.secondaryText.withValues(alpha: 0.3),
             ),
             enabledBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: AppTheme.cardBackground, width: 2),
@@ -454,7 +344,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   color: AppTheme.cardBackground,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppTheme.accentGreen.withOpacity(0.5),
+                    color: AppTheme.accentGreen.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Row(
@@ -479,11 +369,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              // Using correctly mapped years_old key from AppLocalizations
-              "${_calculateAge(_selectedDate)} ${l10n.years_old}",
+              l10n.yearsOld(_calculateAge(_selectedDate)),
               style: TextStyle(
                 fontSize: 18,
-                color: AppTheme.secondaryText.withOpacity(0.7),
+                color: AppTheme.secondaryText.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -714,6 +603,134 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  void _addMeal() {
+    final TextEditingController nameController = TextEditingController();
+    final TextEditingController emojiController = TextEditingController(text: '🍽️');
+    final TextEditingController calsController = TextEditingController(text: '500');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardBackground,
+        title: const Text('Add Meal', style: TextStyle(color: AppTheme.primaryText)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: emojiController,
+              decoration: const InputDecoration(labelText: 'Emoji'),
+              style: const TextStyle(color: AppTheme.primaryText),
+            ),
+            TextField(
+              controller: nameController,
+               decoration: const InputDecoration(labelText: 'Meal Name'),
+              style: const TextStyle(color: AppTheme.primaryText),
+            ),
+            TextField(
+              controller: calsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Calorie Goal'),
+              style: const TextStyle(color: AppTheme.primaryText),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: AppTheme.secondaryText)),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              final emoji = emojiController.text.trim();
+              final cals = int.tryParse(calsController.text) ?? 0;
+              if (name.isNotEmpty) {
+                setState(() {
+                  _meals.add(MealInfo(name, emoji.isNotEmpty ? emoji : '🍽️', cals));
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('ADD', style: TextStyle(color: AppTheme.accentGreen)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMealsStep(AppLocalizations l10n) {
+    return _buildStepContainer(
+      'Daily Meals',
+      'Set up your daily meal schedule and goals. You can change these later.',
+      Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: _meals.length,
+              itemBuilder: (context, index) {
+                final meal = _meals[index];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardBackground,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(meal.emoji, style: const TextStyle(fontSize: 24)),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              meal.name,
+                              style: const TextStyle(
+                                color: AppTheme.primaryText,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '${meal.goalCals} Cal',
+                              style: const TextStyle(
+                                color: AppTheme.secondaryText,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        onPressed: () {
+                          setState(() {
+                            _meals.removeAt(index);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: _addMeal,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Meal'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.cardBackground,
+              foregroundColor: AppTheme.accentGreen,
+              minimumSize: const Size(double.infinity, 50),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGoalStep(AppLocalizations l10n) {
     return _buildStepContainer(
       l10n.goalTitle,
@@ -757,7 +774,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: AppTheme.accentGreen.withOpacity(0.3),
+                          color: AppTheme.accentGreen.withValues(alpha: 0.3),
                           blurRadius: 15,
                           offset: const Offset(0, 8),
                         ),
@@ -773,17 +790,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         : AppTheme.accentGreen,
                   ),
                   const SizedBox(width: 16),
-                  Text(
-                    translatedLabel,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? AppTheme.backgroundColor
-                          : AppTheme.primaryText,
+                  // Expanded so long labels wrap instead of overflowing
+                  // on narrow screens or with a large system font
+                  Expanded(
+                    child: Text(
+                      translatedLabel,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? AppTheme.backgroundColor
+                            : AppTheme.primaryText,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   if (isSelected)
                     const Icon(
                       Icons.check_circle,

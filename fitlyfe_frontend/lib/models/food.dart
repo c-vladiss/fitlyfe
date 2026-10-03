@@ -9,6 +9,9 @@ class Food {
   final Map<String, double> micronutrients; // e.g., {'vitamin_a': 0.02, 'vitamin_c': 0.15}
   final DateTime dateAdded;
   final String? imageUrl;
+  final String? mealType; // 'Breakfast', 'Lunch', 'Dinner', 'Snacks'
+  final String? brand;
+  final double? servingSizeG; // One serving in grams, if known
 
   Food({
     required this.id,
@@ -21,6 +24,9 @@ class Food {
     this.micronutrients = const {},
     required this.dateAdded,
     this.imageUrl,
+    this.mealType,
+    this.brand,
+    this.servingSizeG,
   });
 
   Food copyWith({
@@ -34,6 +40,9 @@ class Food {
     Map<String, double>? micronutrients,
     DateTime? dateAdded,
     String? imageUrl,
+    String? mealType,
+    String? brand,
+    double? servingSizeG,
   }) {
     return Food(
       id: id ?? this.id,
@@ -46,6 +55,9 @@ class Food {
       micronutrients: micronutrients ?? this.micronutrients,
       dateAdded: dateAdded ?? this.dateAdded,
       imageUrl: imageUrl ?? this.imageUrl,
+      mealType: mealType ?? this.mealType,
+      brand: brand ?? this.brand,
+      servingSizeG: servingSizeG ?? this.servingSizeG,
     );
   }
 }

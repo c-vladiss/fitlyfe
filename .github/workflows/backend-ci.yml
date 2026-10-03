@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'fitlyfe-backend/**'
+      # Contract tests execute the app's GraphQL operations against the API
+      - 'fitlyfe_frontend/lib/graphql/operations/**'
     branches:
       - '**'
     tags:
@@ -11,6 +13,7 @@ on:
   pull_request:
     paths:
       - 'fitlyfe-backend/**'
+      - 'fitlyfe_frontend/lib/graphql/operations/**'
 
 jobs:
   backend:

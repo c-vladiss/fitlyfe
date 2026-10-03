@@ -1,5 +1,5 @@
 CREATE TABLE users (
-    id UUID PRIMARY KEY,
+    user_id UUID PRIMARY KEY,
     keycloak_id UUID NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL,
     status VARCHAR(50),
@@ -8,7 +8,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_profiles (
-    user_id UUID PRIMARY KEY REFERENCES users(id),
+    user_id UUID PRIMARY KEY REFERENCES users(user_id),
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     display_name VARCHAR(255),
@@ -22,7 +22,7 @@ CREATE TABLE user_profiles (
 
 CREATE TABLE user_memberships (
     id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
+    user_id UUID REFERENCES users(user_id),
     provider VARCHAR(50),
     product_id VARCHAR(255),
     transaction_id VARCHAR(255),
@@ -37,7 +37,7 @@ CREATE TABLE user_memberships (
 
 CREATE TABLE user_measurements (
     id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
+    user_id UUID REFERENCES users(user_id),
     measured_at TIMESTAMP NOT NULL,
     waist_cm NUMERIC(5,2),
     neck_cm NUMERIC(5,2),
@@ -52,7 +52,7 @@ CREATE TABLE user_measurements (
 
 CREATE TABLE user_weights (
     id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
+    user_id UUID REFERENCES users(user_id),
     measured_at TIMESTAMP NOT NULL,
     weight_kg NUMERIC(5,2),
     source VARCHAR(50),
@@ -70,7 +70,7 @@ CREATE TABLE exercises (
 
 CREATE TABLE workout_sessions (
     id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
+    user_id UUID REFERENCES users(user_id),
     started_at TIMESTAMP,
     ended_at TIMESTAMP,
     duration_seconds INTEGER,
@@ -112,7 +112,7 @@ CREATE TABLE foods (
 
 CREATE TABLE daily_nutrition (
     id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
+    user_id UUID REFERENCES users(user_id),
     date DATE NOT NULL,
     total_calories INTEGER,
     protein_g NUMERIC(6,2),
@@ -145,7 +145,7 @@ CREATE TABLE meal_foods (
 
 CREATE TABLE daily_steps (
     id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
+    user_id UUID REFERENCES users(user_id),
     date DATE,
     steps INTEGER,
     source VARCHAR(50),

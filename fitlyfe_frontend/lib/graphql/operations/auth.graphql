@@ -1,0 +1,20 @@
+mutation SyncUser {
+  syncUser {
+    id
+    email
+    firstName
+    lastName
+    requiresOnboarding
+    profile {
+      heightCm
+      weightKg
+      dateOfBirth
+      goal
+      displayName
+    }
+  }
+}
+
+mutation CompleteOnboarding {
+  completeOnboarding
+}

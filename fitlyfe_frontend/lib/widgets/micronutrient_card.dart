@@ -7,10 +7,11 @@ class MicronutrientCard extends StatelessWidget {
   final Map<String, double> rdis;
 
   const MicronutrientCard({
-    super.key, 
+    super.key,
     required this.percentages,
     required this.rawValues,
-    required this.rdis, required Map<String, double> nutrients,
+    required this.rdis,
+    required Map<String, double> nutrients,
   });
 
   @override
@@ -71,24 +72,27 @@ class MicronutrientCard extends StatelessWidget {
                       children: [
                         Text(
                           label,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                            color: color,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                                color: color,
+                              ),
                         ),
                         Text(
                           '${rawValue.toInt()} / ${rdi.toInt()} $unit',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontSize: 10,
-                          ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.copyWith(fontSize: 10),
                         ),
                       ],
                     ),
                     Text(
                       '$percentageInt%',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: percentageValue >= 1.0 ? AppTheme.accentGreen : AppTheme.primaryText,
+                        color: percentageValue >= 1.0
+                            ? AppTheme.accentGreen
+                            : AppTheme.primaryText,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -103,20 +107,22 @@ class MicronutrientCard extends StatelessWidget {
                           height: 8,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
+                            color: color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 500),
                           height: 8,
-                          width: constraints.maxWidth * percentageValue.clamp(0.0, 1.0),
+                          width:
+                              constraints.maxWidth *
+                              percentageValue.clamp(0.0, 1.0),
                           decoration: BoxDecoration(
                             color: color,
                             borderRadius: BorderRadius.circular(4),
                             boxShadow: [
                               BoxShadow(
-                                color: color.withOpacity(0.3),
+                                color: color.withValues(alpha: 0.3),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),

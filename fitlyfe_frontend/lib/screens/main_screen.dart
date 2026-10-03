@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/providers/health_provider.dart';
 import 'package:fitlyfe_frontend/providers/progress_provider.dart';
 import 'package:fitlyfe_frontend/screens/home_page.dart';
@@ -21,8 +21,10 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  late PageController _pageController;
+  late AppState _appState;
   StreamSubscription? _completionSubscription;
+  HealthProvider? _healthProvider;
+  VoidCallback? _healthListener;
   final List<String> _notificationQueue = [];
   String? _activeNotification;
 
@@ -37,11 +39,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    final appState = Provider.of<AppState>(context, listen: false);
-    _pageController = PageController(initialPage: appState.selectedPageIndex);
-
-    // Listen to global index changes to animate the PageView
-    appState.addListener(_onAppStateChanged);
+    _appState = Provider.of<AppState>(context, listen: false);
 
     // Initialize health data
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -63,15 +61,18 @@ class _MainScreenState extends State<MainScreen> {
         }
       });
 
-      // Also listen for updates (e.g. after manual refresh or authorization)
-      healthProvider.addListener(() {
+      // Also listen for updates (e.g. after manual refresh or authorization).
+      // Removed in dispose, since the provider outlives this screen.
+      _healthProvider = healthProvider;
+      _healthListener = () {
         if (healthProvider.isAuthorized) {
           progressProvider.syncHealthData(
             healthProvider.steps,
             healthProvider.activeMinutes,
           );
         }
-      });
+      };
+      healthProvider.addListener(_healthListener!);
       // Listen for goal/achievement completions
       _completionSubscription = progressProvider.completionStream.listen((
         message,
@@ -81,11 +82,11 @@ class _MainScreenState extends State<MainScreen> {
 
       // Trigger "First Step" achievement on first login/entry
       Future.delayed(const Duration(seconds: 2), () {
-        appState.checkStreak();
+        _appState.checkStreak();
         progressProvider.unlockAchievement('b1');
 
         // Trigger streak achievements
-        if (appState.currentUser.streakCount >= 3) {
+        if (_appState.currentUser.streakCount >= 3) {
           progressProvider.unlockAchievement('b6');
         }
       });
@@ -112,44 +113,26 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  void _onAppStateChanged() {
-    final appState = Provider.of<AppState>(context, listen: false);
-    if (_pageController.hasClients &&
-        _pageController.page?.round() != appState.selectedPageIndex) {
-      _pageController.animateToPage(
-        appState.selectedPageIndex,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOutCubic,
-      );
-    }
-  }
-
   @override
   void dispose() {
+    if (_healthListener != null) {
+      _healthProvider?.removeListener(_healthListener!);
+    }
     _completionSubscription?.cancel();
-    // We need to remove the listener when disposing
-    Provider.of<AppState>(
-      context,
-      listen: false,
-    ).removeListener(_onAppStateChanged);
-    _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       extendBody: true,
       body: Stack(
         children: [
-          PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              appState.setPageIndex(index);
-            },
+          IndexedStack(
+            index: appState.selectedPageIndex,
             children: _pages,
           ),
           if (_activeNotification != null)
@@ -175,35 +158,35 @@ class _MainScreenState extends State<MainScreen> {
                   Icons.home_outlined,
                   Icons.home,
                   0,
-                  tp.translate('home'),
+                  l10n.home,
                   appState,
                 ),
                 _buildNavItem(
                   Icons.local_fire_department_outlined,
                   Icons.local_fire_department,
                   1,
-                  tp.translate('nutrition'),
+                  l10n.nutrition,
                   appState,
                 ),
                 _buildNavItem(
                   Icons.fitness_center_outlined,
                   Icons.fitness_center,
                   2,
-                  tp.translate('workout'),
+                  l10n.workout,
                   appState,
                 ),
                 _buildNavItem(
                   Icons.bar_chart_outlined,
                   Icons.bar_chart,
                   3,
-                  tp.translate('progress'),
+                  l10n.progress,
                   appState,
                 ),
                 _buildNavItem(
                   Icons.auto_awesome_outlined,
                   Icons.auto_awesome,
                   4,
-                  tp.translate('ai'),
+                  l10n.ai,
                   appState,
                 ),
               ],
@@ -244,7 +227,7 @@ class _MainScreenState extends State<MainScreen> {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: AppTheme.accentGreen.withOpacity(0.3),
+                        color: AppTheme.accentGreen.withValues(alpha: 0.3),
                         blurRadius: 10,
                         spreadRadius: 0,
                       ),

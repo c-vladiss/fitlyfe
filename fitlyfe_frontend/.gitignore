@@ -62,3 +62,7 @@ ios/Flutter/GoogleOAuth.xcconfig
 .metadata
 devtools_options.yaml
 analysis_output.txt
+
+# GraphQL generated Dart files (schema.graphql and operations/*.graphql are committed)
+lib/graphql/*.graphql.dart
+lib/graphql/**/*.graphql.dart

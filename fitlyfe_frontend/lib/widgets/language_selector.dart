@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import '../providers/locale_provider.dart';
 
 class LanguageSelector extends StatelessWidget {
@@ -10,7 +11,8 @@ class LanguageSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<LocaleProvider>(context);
-    final currentLocale = provider.locale ?? const Locale('en');
+    final locales = LocaleProvider.supportedLocales;
+    final currentLocale = provider.locale;
 
     if (isGrid) {
       return GridView.builder(
@@ -20,10 +22,10 @@ class LanguageSelector extends StatelessWidget {
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
         ),
-        itemCount: L10n.all.length,
+        itemCount: locales.length,
         itemBuilder: (context, index) {
-          final locale = L10n.all[index];
-          final isSelected = currentLocale.languageCode == locale.languageCode;
+          final locale = locales[index];
+          final isSelected = currentLocale?.languageCode == locale.languageCode;
           return _buildGridItem(context, locale, isSelected, provider);
         },
       );
@@ -32,27 +34,34 @@ class LanguageSelector extends StatelessWidget {
     return ListView.separated(
       shrinkWrap: true,
       physics: const ClampingScrollPhysics(),
-      itemCount: L10n.all.length,
+      // First row follows the phone's language
+      itemCount: locales.length + 1,
       separatorBuilder: (ctx, i) => const Divider(height: 1),
       itemBuilder: (context, index) {
-        final locale = L10n.all[index];
-        final isSelected = currentLocale.languageCode == locale.languageCode;
+        if (index == 0) {
+          return _buildListItem(context, null, currentLocale == null, provider);
+        }
+        final locale = locales[index - 1];
+        final isSelected = currentLocale?.languageCode == locale.languageCode;
         return _buildListItem(context, locale, isSelected, provider);
       },
     );
   }
 
-  Widget _buildListItem(BuildContext context, Locale locale, bool isSelected, LocaleProvider provider) {
+  Widget _buildListItem(
+    BuildContext context,
+    Locale? locale,
+    bool isSelected,
+    LocaleProvider provider,
+  ) {
     return ListTile(
       onTap: () {
         provider.setLocale(locale);
       },
-      leading: Text(
-        L10n.getFlag(locale.languageCode),
-        style: const TextStyle(fontSize: 24),
-      ),
       title: Text(
-        L10n.getNativeName(locale.languageCode),
+        locale == null
+            ? AppLocalizations.of(context).languageSystemDefault
+            : LocaleProvider.nativeName(locale),
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           color: isSelected ? Theme.of(context).primaryColor : null,
@@ -61,39 +70,42 @@ class LanguageSelector extends StatelessWidget {
       trailing: isSelected
           ? Icon(Icons.check, color: Theme.of(context).primaryColor)
           : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      tileColor: isSelected ? Theme.of(context).primaryColor.withOpacity(0.05) : null,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      tileColor: isSelected
+          ? Theme.of(context).primaryColor.withValues(alpha: 0.05)
+          : null,
     );
   }
 
-  Widget _buildGridItem(BuildContext context, Locale locale, bool isSelected, LocaleProvider provider) {
+  Widget _buildGridItem(
+    BuildContext context,
+    Locale locale,
+    bool isSelected,
+    LocaleProvider provider,
+  ) {
     return InkWell(
       onTap: () => provider.setLocale(locale),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? Theme.of(context).primaryColor.withOpacity(0.1) 
+          color: isSelected
+              ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
               : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? Theme.of(context).primaryColor : Colors.grey.withOpacity(0.2),
+            color: isSelected
+                ? Theme.of(context).primaryColor
+                : Colors.grey.withValues(alpha: 0.2),
             width: isSelected ? 2 : 1,
           ),
         ),
         child: Row(
           children: [
-            Text(
-              L10n.getFlag(locale.languageCode),
-              style: const TextStyle(fontSize: 24),
-            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                L10n.getNativeName(locale.languageCode),
+                LocaleProvider.nativeName(locale),
                 style: TextStyle(
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected ? Theme.of(context).primaryColor : null,

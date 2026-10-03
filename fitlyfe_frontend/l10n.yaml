@@ -1,0 +1,9 @@
+# Flutter gen-l10n configuration: `flutter gen-l10n` (also run by `flutter pub get`)
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-dir: lib/l10n/generated
+output-localization-file: app_localizations.dart
+# AppLocalizations.of(context) is never null: the delegate is always registered
+nullable-getter: false
+# Lists strings missing from a locale; test/l10n/arb_consistency_test.dart fails on them
+untranslated-messages-file: build/untranslated_messages.json

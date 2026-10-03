@@ -7,10 +7,24 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # Schema comes from Flyway; Hibernate only checks that entities match it
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Lets tests count the SQL statements a request runs
+        generate_statistics: true
+  flyway:
+    enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9999/auth/v1/.well-known/jwks.json
 
 supabase:
   url: http://localhost:9999
+
+usda:
+  api-key: test-key
+  search-fallback-threshold: 5

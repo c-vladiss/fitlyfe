@@ -1,0 +1,100 @@
+# ===========================================================================
+# Food Catalog — search, barcode lookup, recipe details
+# ===========================================================================
+
+extend type Query {
+    searchFoodCatalog(
+        query:  String!
+        types:  [FoodEntryType!]
+        limit:  Int
+        offset: Int
+    ): FoodSearchResult!
+
+    foodEntryById(id: ID!): FoodEntry
+    foodEntryByBarcode(barcode: String!): FoodEntry
+}
+
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
+
+enum FoodEntryType {
+    FOOD
+    PRODUCT
+    RECIPE
+}
+
+# ---------------------------------------------------------------------------
+# Search result wrapper
+# ---------------------------------------------------------------------------
+
+type FoodSearchResult {
+    items:   [FoodEntry!]!
+    total:   Int!
+    hasMore: Boolean!
+}
+
+# ---------------------------------------------------------------------------
+# Core types
+# ---------------------------------------------------------------------------
+
+type FoodEntry {
+    id:                  ID!
+    name:                String!
+    brand:               String
+    entryType:           FoodEntryType!
+    barcode:             String
+    servingSizeG:        Float
+    caloriesPer100g:     Float
+    proteinPer100g:      Float
+    carbsPer100g:        Float
+    fatPer100g:          Float
+    fiberPer100g:        Float
+    sugarPer100g:        Float
+    saturatedFatPer100g: Float
+    micronutrients:      Micronutrients
+    entrySource:         String
+    verified:            Boolean
+    recipe:              Recipe
+}
+
+type Micronutrients {
+    sodiumMg:       Float
+    potassiumMg:    Float
+    calciumMg:      Float
+    ironMg:         Float
+    magnesiumMg:    Float
+    zincMg:         Float
+    phosphorusMg:   Float
+    vitaminAMcg:    Float
+    vitaminCMg:     Float
+    vitaminDMcg:    Float
+    vitaminEMg:     Float
+    vitaminKMcg:    Float
+    vitaminB6Mg:    Float
+    vitaminB12Mcg:  Float
+    folateMcg:      Float
+    niacinMg:       Float
+    thiaminMg:      Float
+    riboflavinMg:   Float
+    cholesterolMg:  Float
+}
+
+type Recipe {
+    id:           ID!
+    servings:     Int!
+    servingLabel: String
+    prepTimeMin:  Int
+    cookTimeMin:  Int
+    instructions: String
+    ingredients:  [RecipeIngredient!]!
+}
+
+type RecipeIngredient {
+    food:          FoodEntry!
+    displayAmount: Float!
+    displayUnit:   String!
+    quantityG:     Float!
+    orderIndex:    Int!
+    notes:         String
+}

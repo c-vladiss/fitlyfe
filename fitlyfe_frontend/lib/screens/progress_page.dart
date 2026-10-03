@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/providers/progress_provider.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/widgets/progress_chart.dart';
@@ -28,7 +28,7 @@ class _ProgressPageState extends State<ProgressPage> {
     _appState = Provider.of<AppState>(context, listen: false);
     _currentPage = _appState.progressMetricIndex;
     _pageController = PageController(initialPage: _currentPage);
-    
+
     // Listen to changes in progressMetricIndex
     _appState.addListener(_onAppStateChanged);
   }
@@ -59,8 +59,7 @@ class _ProgressPageState extends State<ProgressPage> {
   @override
   Widget build(BuildContext context) {
     final progressProvider = Provider.of<ProgressProvider>(context);
-    final tp = Provider.of<TranslationProvider>(context);
-    final appState = Provider.of<AppState>(context);
+    final l10n = AppLocalizations.of(context);
     final last7Days = progressProvider.last7DaysData;
 
     return Scaffold(
@@ -73,14 +72,10 @@ class _ProgressPageState extends State<ProgressPage> {
               // Header
               Row(
                 children: [
-                  Icon(
-                    Icons.bar_chart,
-                    color: AppTheme.accentGreen,
-                    size: 28,
-                  ),
+                  Icon(Icons.bar_chart, color: AppTheme.accentGreen, size: 28),
                   const SizedBox(width: 12),
                   Text(
-                    tp.translate('progress'),
+                    l10n.progress,
                     style: Theme.of(context).textTheme.displayMedium,
                   ),
                 ],
@@ -97,15 +92,17 @@ class _ProgressPageState extends State<ProgressPage> {
                       setState(() {
                         _currentPage = index;
                       });
-                      Provider.of<AppState>(context, listen: false)
-                          .setProgressMetricIndex(index);
+                      Provider.of<AppState>(
+                        context,
+                        listen: false,
+                      ).setProgressMetricIndex(index);
                     }
                   },
                   clipBehavior: Clip.none,
                   children: [
                     _buildChartSection(
                       context,
-                      '${tp.translate('calories_burnt')} (${tp.translate('last_7_days')})',
+                      '${l10n.caloriesBurnt} (${l10n.last7Days})',
                       AppTheme.accentGreen,
                       'kcal',
                       (d) => d.caloriesBurned,
@@ -113,7 +110,7 @@ class _ProgressPageState extends State<ProgressPage> {
                     ),
                     _buildChartSection(
                       context,
-                      '${tp.translate('steps_count')} (${tp.translate('last_7_days')})',
+                      '${l10n.stepsCount} (${l10n.last7Days})',
                       AppTheme.accentBlue,
                       'steps',
                       (d) => (d.steps ?? 0).toDouble(),
@@ -143,7 +140,7 @@ class _ProgressPageState extends State<ProgressPage> {
                         decoration: BoxDecoration(
                           color: _currentPage == index
                               ? AppTheme.accentGreen
-                              : AppTheme.secondaryText.withOpacity(0.3),
+                              : AppTheme.secondaryText.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -164,27 +161,27 @@ class _ProgressPageState extends State<ProgressPage> {
                 children: [
                   _buildStatCard(
                     context,
-                    tp.translate('total_workout'),
+                    l10n.totalWorkout,
                     progressProvider.totalWorkoutHours.toStringAsFixed(1),
-                    tp.translate('hrs'),
+                    l10n.hrs,
                   ),
                   _buildStatCard(
                     context,
-                    tp.translate('total_steps'),
+                    l10n.totalSteps,
                     (progressProvider.totalSteps / 1000).toStringAsFixed(1),
-                    tp.translate('k'),
+                    l10n.k,
                   ),
                   _buildStatCard(
                     context,
-                    tp.translate('weight_lost'),
+                    l10n.weightLost,
                     progressProvider.totalWeightLost.toStringAsFixed(1),
-                    tp.translate('kg'),
+                    l10n.kg,
                   ),
                   _buildStatCard(
                     context,
-                    tp.translate('avg_calories'),
-                    (progressProvider.totalSteps > 0 ? 450 : 0).toString(),
-                    tp.translate('kcal'),
+                    l10n.avgCalories,
+                    progressProvider.averageCaloriesBurned.round().toString(),
+                    l10n.kcal,
                   ),
                 ],
               ),
@@ -193,8 +190,9 @@ class _ProgressPageState extends State<ProgressPage> {
               _buildActionCard(
                 context,
                 icon: Icons.flag,
-                title: tp.translate('goals'),
-                subtitle: '${progressProvider.goals.where((g) => g.isCompleted).length}/${progressProvider.goals.length} ${tp.translate('completed')}',
+                title: l10n.goals,
+                subtitle:
+                    '${progressProvider.goals.where((g) => g.isCompleted).length}/${progressProvider.goals.length} ${l10n.completed}',
                 iconColor: AppTheme.accentOrange,
                 onTap: () {
                   Navigator.push(
@@ -209,13 +207,16 @@ class _ProgressPageState extends State<ProgressPage> {
               _buildActionCard(
                 context,
                 icon: Icons.emoji_events,
-                title: tp.translate('achievements'),
-                subtitle: '${progressProvider.achievements.where((a) => a.isUnlocked).length} ${tp.translate('unlocked')}',
+                title: l10n.achievements,
+                subtitle:
+                    '${progressProvider.achievements.where((a) => a.isUnlocked).length} ${l10n.unlocked}',
                 iconColor: AppTheme.accentYellow,
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const AchievementsPage()),
+                    MaterialPageRoute(
+                      builder: (context) => const AchievementsPage(),
+                    ),
                   );
                 },
               ),
@@ -225,12 +226,15 @@ class _ProgressPageState extends State<ProgressPage> {
               _buildActionCard(
                 context,
                 icon: Icons.lightbulb,
-                title: tp.translate('tips_to_improve'),
-                subtitle: tp.translate('ask_ai'),
+                title: l10n.tipsToImprove,
+                subtitle: l10n.askAi,
                 iconColor: AppTheme.accentGreen,
                 isHighlighted: true,
                 onTap: () {
-                  final appState = Provider.of<AppState>(context, listen: false);
+                  final appState = Provider.of<AppState>(
+                    context,
+                    listen: false,
+                  );
                   appState.setPageIndex(4);
                 },
               ),
@@ -273,19 +277,16 @@ class _ProgressPageState extends State<ProgressPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 value,
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontSize: 32,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.displayMedium?.copyWith(fontSize: 32),
               ),
               const SizedBox(width: 4),
               Padding(
@@ -322,7 +323,10 @@ class _ProgressPageState extends State<ProgressPage> {
           color: AppTheme.cardBackground,
           borderRadius: BorderRadius.circular(24),
           border: isHighlighted
-              ? Border.all(color: AppTheme.accentGreen.withOpacity(0.3), width: 1)
+              ? Border.all(
+                  color: AppTheme.accentGreen.withValues(alpha: 0.3),
+                  width: 1,
+                )
               : null,
         ),
         child: Row(
@@ -331,14 +335,10 @@ class _ProgressPageState extends State<ProgressPage> {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.2),
+                color: iconColor.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 28,
-              ),
+              child: Icon(icon, color: iconColor, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -348,20 +348,21 @@ class _ProgressPageState extends State<ProgressPage> {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: isHighlighted ? AppTheme.accentGreen : AppTheme.primaryText,
+                      color: isHighlighted
+                          ? AppTheme.accentGreen
+                          : AppTheme.primaryText,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: isHighlighted ? AppTheme.accentGreen : AppTheme.secondaryText,
+              color: isHighlighted
+                  ? AppTheme.accentGreen
+                  : AppTheme.secondaryText,
               size: 20,
             ),
           ],
@@ -420,10 +421,10 @@ class _ChartSectionState extends State<_ChartSection> {
                     Text(
                       _hoveredData != null
                           ? DateFormat('EEEE, MMM d').format(_hoveredData!.date)
-                          : Provider.of<TranslationProvider>(context, listen: false).translate('last_7_days'),
+                          : AppLocalizations.of(context).last7Days,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.secondaryText.withOpacity(0.7),
-                          ),
+                        color: AppTheme.secondaryText.withValues(alpha: 0.7),
+                      ),
                     ),
                   ],
                 ),
@@ -435,16 +436,16 @@ class _ChartSectionState extends State<_ChartSection> {
                     Text(
                       '${widget.valueGetter(_hoveredData!).toInt()}',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: widget.color,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        color: widget.color,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       widget.unit,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: widget.color.withOpacity(0.8),
-                            fontSize: 10,
-                          ),
+                        color: widget.color.withValues(alpha: 0.8),
+                        fontSize: 10,
+                      ),
                     ),
                   ],
                 ),

@@ -1,5 +1,6 @@
 extend type Query {
     me: User
+    userGoals: UserGoals!
 }
 
 type User {
@@ -7,4 +8,39 @@ type User {
     email: String!
     firstName: String
     lastName: String
+}
+
+type UserProfile {
+    heightCm: Float
+    weightKg: Float
+    dateOfBirth: String
+    goal: String
+    displayName: String
+}
+
+input UpdateUserProfileInput {
+    displayName: String
+    heightCm: Float
+    weightKg: Float
+    dateOfBirth: String
+    goal: String
+}
+
+extend type Mutation {
+    updateUserProfile(input: UpdateUserProfileInput!): UserProfile!
+    updateUserGoals(
+        dailyCalories: Int,
+        dailyProteinG: Float,
+        dailyCarbsG: Float,
+        dailyFatG: Float,
+        goalWeightKg: Float
+    ): UserGoals!
+}
+
+type UserGoals {
+    dailyCalories: Int!
+    dailyProteinG: Float!
+    dailyCarbsG: Float!
+    dailyFatG: Float!
+    goalWeightKg: Float
 }

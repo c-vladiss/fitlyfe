@@ -21,7 +21,7 @@ class User {
     required this.weight,
     required this.height,
     required this.age,
-    this.goal = 'Stay Fit',
+    this.goal = 'stay_fit',
     this.dailyCalorieGoal = 2000,
     this.dailyStepGoal = 10000,
     this.dailyActiveTimeGoal = 60,

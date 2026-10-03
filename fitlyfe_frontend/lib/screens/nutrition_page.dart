@@ -1,36 +1,50 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:fitlyfe_frontend/graphql/schema.graphql.dart';
 import 'package:provider/provider.dart';
 import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
-import 'package:fitlyfe_frontend/widgets/food_item_card.dart';
 import 'package:fitlyfe_frontend/widgets/micronutrient_card.dart';
 import 'package:fitlyfe_frontend/models/food.dart';
-import 'package:fitlyfe_frontend/models/recipe.dart';
+import 'package:fitlyfe_frontend/utils/meal_icon_mapping.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:fitlyfe_frontend/screens/nutrition_details_page.dart';
+import 'package:fitlyfe_frontend/screens/meal_settings_page.dart';
+import 'package:fitlyfe_frontend/screens/food_details_page.dart';
+import 'package:fitlyfe_frontend/screens/barcode_scanner_page.dart';
+import 'package:intl/intl.dart';
 
-class NutritionPage extends StatelessWidget {
+class NutritionPage extends StatefulWidget {
   const NutritionPage({super.key});
+
+  @override
+  State<NutritionPage> createState() => _NutritionPageState();
+}
+
+class _NutritionPageState extends State<NutritionPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Logged food lives on the backend; fetch the selected day when the tab opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<NutritionProvider>(context, listen: false).loadDailyNutrition();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     final nutritionProvider = Provider.of<NutritionProvider>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     final user = appState.currentUser;
 
     final caloriesConsumed = nutritionProvider.todayCalories;
     final caloriesGoal = user.dailyCalorieGoal;
-    final caloriesRemaining = (caloriesGoal - caloriesConsumed).clamp(
-      0.0,
-      caloriesGoal,
-    );
-
-    // Macro calories
-    final proteinCals = nutritionProvider.todayProtein * 4;
-    final carbsCals = nutritionProvider.todayCarbs * 4;
-    final fatsCals = nutritionProvider.todayFats * 9;
 
     // Calculate Macro Goals (30% Protein, 40% Carbs, 30% Fats)
     final proteinGoal = (caloriesGoal * 0.30) / 4;
@@ -54,79 +68,162 @@ class NutritionPage extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    tp.translate('nutrition'),
+                    l10n.nutrition,
                     style: Theme.of(context).textTheme.displayMedium,
                   ),
                 ],
               ),
               const SizedBox(height: 32),
 
-              // Calorie & Macro Progress
-              _CalorieMacroChart(
-                caloriesGoal: caloriesGoal,
-                caloriesConsumed: caloriesConsumed,
-                protein: nutritionProvider.todayProtein,
-                carbs: nutritionProvider.todayCarbs,
-                fats: nutritionProvider.todayFats,
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: RichText(
-                  text: TextSpan(
+              // Date Selector
+              Builder(
+                builder: (context) {
+                  final now = DateTime.now();
+                  final selectedDate = nutritionProvider.selectedDate;
+                  final isToday = selectedDate.year == now.year &&
+                      selectedDate.month == now.month &&
+                      selectedDate.day == now.day;
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      TextSpan(
-                        text: '${caloriesConsumed.toInt()}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppTheme.accentGreen,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios, color: AppTheme.primaryText, size: 20),
+                        onPressed: () {
+                          nutritionProvider.setSelectedDate(
+                            selectedDate.subtract(const Duration(days: 1))
+                          );
+                        },
                       ),
-                      TextSpan(
-                        text: ' / ${user.dailyCalorieGoal.toInt()} KCAL',
-                        style: Theme.of(context).textTheme.titleLarge,
+                      Text(
+                        DateFormat('EEEE, MMM d, yyyy').format(selectedDate),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.arrow_forward_ios, 
+                          color: isToday 
+                              ? AppTheme.secondaryText.withValues(alpha: 0.5) 
+                              : AppTheme.primaryText, 
+                          size: 20,
+                        ),
+                        onPressed: isToday 
+                            ? null 
+                            : () {
+                                nutritionProvider.setSelectedDate(
+                                  selectedDate.add(const Duration(days: 1))
+                                );
+                              },
                       ),
                     ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Summary Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Summary',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
                   ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NutritionDetailsPage(
+                            caloriesConsumed: caloriesConsumed,
+                            caloriesGoal: caloriesGoal,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Details',
+                      style: TextStyle(color: AppTheme.accentGreen, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBackground,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
+                ),
+                child: Column(
+                  children: [
+                    // Top Row: Remaining Chart
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Center: Remaining Chart
+                        _CalorieMacroChart(
+                          caloriesGoal: caloriesGoal,
+                          caloriesConsumed: caloriesConsumed,
+                          protein: nutritionProvider.todayProtein,
+                          carbs: nutritionProvider.todayCarbs,
+                          fats: nutritionProvider.todayFats,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    // Bottom Row: Macros
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildMiniMacroBar('Carbs', nutritionProvider.todayCarbs, carbsGoal, AppTheme.accentGreen),
+                        _buildMiniMacroBar('Protein', nutritionProvider.todayProtein, proteinGoal, AppTheme.accentBlue),
+                        _buildMiniMacroBar('Fat', nutritionProvider.todayFats, fatsGoal, AppTheme.accentOrange),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 32),
 
-              // Macronutrients
+              // Nutrition Categories Section
+                  Text(
+                    'Nutrition',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: AppTheme.cardBackground,
                   borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
                 ),
                 child: Column(
                   children: [
-                    Text(
-                      tp.translate('macronutrients'),
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildMacroRow(
-                      context,
-                      tp.translate('protein'),
-                      nutritionProvider.todayProtein,
-                      proteinGoal,
-                      AppTheme.accentBlue,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMacroRow(
-                      context,
-                      tp.translate('carbs'),
-                      nutritionProvider.todayCarbs,
-                      carbsGoal,
-                      AppTheme.accentGreen,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMacroRow(
-                      context,
-                      tp.translate('fats'),
-                      nutritionProvider.todayFats,
-                      fatsGoal,
-                      AppTheme.accentOrange,
+                    _buildReorderableMeals(context, nutritionProvider, l10n),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MealSettingsPage(
+                                date: nutritionProvider.selectedDate,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add_circle_outline, color: AppTheme.accentGreen),
+                        label: const Text(
+                          'Add Meal Category',
+                          style: TextStyle(color: AppTheme.accentGreen, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -137,14 +234,18 @@ class NutritionPage extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    tp.translate('micronutrients'),
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Flexible(
+                    child: Text(
+                      l10n.micronutrients,
+                      style: Theme.of(context).textTheme.titleLarge,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
-                    onPressed: () => _showAddVitaminDialog(context, tp),
+                    onPressed: () => _showAddVitaminDialog(context, l10n),
                     icon: const Icon(Icons.medication, size: 20),
-                    label: Text(tp.translate('add_vitamin')),
+                    label: Text(l10n.addVitamin),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accentPurple,
                       foregroundColor: AppTheme.primaryText,
@@ -165,50 +266,6 @@ class NutritionPage extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
-              // Healthy Recipes Section
-              _buildRecipesSection(context, tp),
-              const SizedBox(height: 32),
-
-              // Today's Log
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    tp.translate('today_log'),
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _showAddFoodDialog(context, tp),
-                    icon: const Icon(Icons.add, size: 20),
-                    label: Text(tp.translate('add_food')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.accentGreen,
-                      foregroundColor: AppTheme.backgroundColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ...nutritionProvider.todayFoods.map(
-                (food) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: FoodItemCard(food: food),
-                ),
-              ),
-              if (nutritionProvider.todayFoods.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(40),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardBackground,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: Text(
-                      tp.translate('no_food_logged'),
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -216,441 +273,135 @@ class NutritionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMacroRow(
-    BuildContext context,
-    String label,
-    double value,
-    double goal,
-    Color color,
-  ) {
-    final progress = (value / goal).clamp(0.0, 1.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+  Widget _buildReorderableMeals(BuildContext context, NutritionProvider provider, AppLocalizations l10n) {
+    final meals = provider.getMealsForDate(provider.selectedDate);
+
+    // Calculate adjusted goals based on calorie carry-over overages
+    final adjustedGoals = <int>[];
+    int carryOver = 0;
+    
+    for (int i = 0; i < meals.length; i++) {
+      final meal = meals[i];
+      final foods = provider.todayFoods.where((f) => f.mealType == meal.name).toList();
+      final double consumed = foods.fold(0.0, (sum, food) => sum + food.calories);
+      
+      int currentGoal = meal.goalCals - carryOver;
+      if (currentGoal < 0) {
+        carryOver = -currentGoal;
+        currentGoal = 0;
+      } else {
+        carryOver = 0;
+      }
+      adjustedGoals.add(currentGoal);
+      
+      if (consumed > currentGoal) {
+        carryOver += (consumed - currentGoal).toInt();
+      }
+    }
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        canvasColor: Colors.transparent,
+      ),
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: meals.length,
+        onReorder: (oldIndex, newIndex) {
+          int adjustedNewIndex = newIndex;
+          if (oldIndex < newIndex) {
+            adjustedNewIndex -= 1;
+          }
+          provider.reorderMeals(provider.selectedDate, oldIndex, adjustedNewIndex);
+        },
+        itemBuilder: (context, index) {
+          final meal = meals[index];
+          final adjustedGoal = adjustedGoals[index];
+          return Container(
+            key: ValueKey(meal.name),
+            child: Column(
               children: [
-                Container(
-                  width: 4,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                _MealSection(
+                  index: index,
+                  mealName: meal.name,
+                  emojiStr: meal.emoji,
+                  goalCals: adjustedGoal,
+                  foods: provider.todayFoods.where((f) => f.mealType == meal.name).toList(),
+                  onAddTap: () => _showAddFoodDialog(context, l10n, mealType: meal.name),
+                  onMealTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MealSettingsPage(
+                          date: provider.selectedDate,
+                          currentMeal: meal,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
+                if (index < meals.length - 1)
+                  Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),
               ],
             ),
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '${value.toInt()}g',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  TextSpan(
-                    text: ' / ${goal.toInt()}g',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.secondaryText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            backgroundColor: AppTheme.backgroundColor, // Background track color
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecipesSection(BuildContext context, TranslationProvider tp) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              tp.translate('healthy_recipes') ?? 'Healthy Recipes',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(
-              tp.translate('low_cal_options') ?? 'Low Calorie',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppTheme.accentGreen),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 220,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: premadeRecipes.length,
-            itemBuilder: (context, index) {
-              final recipe = premadeRecipes[index];
-              return _buildRecipeCard(context, recipe, tp);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecipeCard(
-    BuildContext context,
-    Recipe recipe,
-    TranslationProvider tp,
-  ) {
-    return GestureDetector(
-      onTap: () => _showRecipeDetails(context, recipe, tp),
-      child: Container(
-        width: 180,
-        margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          color: AppTheme.cardBackground,
-          borderRadius: BorderRadius.circular(24),
-          image: DecorationImage(
-            image: NetworkImage(recipe.imageUrl),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.4),
-              BlendMode.darken,
-            ),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentGreen.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${recipe.calories.toInt()} kcal',
-                  style: const TextStyle(
-                    color: AppTheme.backgroundColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                recipe.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.egg_outlined,
-                    size: 12,
-                    color: AppTheme.accentBlue,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${recipe.protein.toInt()}g',
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.opacity,
-                    size: 12,
-                    color: AppTheme.accentOrange,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${recipe.fats.toInt()}g',
-                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  void _showRecipeDetails(
-    BuildContext context,
-    Recipe recipe,
-    TranslationProvider tp,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: AppTheme.backgroundColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Hero Image
-              Stack(
-                children: [
-                  Container(
-                    height: 250,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(32),
-                      ),
-                      image: DecorationImage(
-                        image: NetworkImage(recipe.imageUrl),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 20,
-                    right: 20,
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black45,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                recipe.name,
-                                style: Theme.of(context).textTheme.displaySmall,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                recipe.category,
-                                style: TextStyle(
-                                  color: AppTheme.accentGreen,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.cardBackground,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                '${recipe.calories.toInt()}',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.accentGreen,
-                                ),
-                              ),
-                              const Text(
-                                'KCAL',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: AppTheme.secondaryText,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Macro Breakdown
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _recipeMacroStat(
-                          'Protein',
-                          '${recipe.protein.toInt()}g',
-                          AppTheme.accentBlue,
-                        ),
-                        _recipeMacroStat(
-                          'Carbs',
-                          '${recipe.carbs.toInt()}g',
-                          AppTheme.accentGreen,
-                        ),
-                        _recipeMacroStat(
-                          'Fats',
-                          '${recipe.fats.toInt()}g',
-                          AppTheme.accentOrange,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 32),
-                    Text(
-                      'Ingredients',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    ...recipe.ingredients.map(
-                      (ing) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle_outline,
-                              size: 18,
-                              color: AppTheme.accentGreen,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              ing,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-                    Text(
-                      'Instructions',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    ...recipe.instructions.asMap().entries.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${entry.key + 1}.',
-                              style: const TextStyle(
-                                color: AppTheme.accentGreen,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                entry.value,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Provider.of<NutritionProvider>(
-                            context,
-                            listen: false,
-                          ).addFood(recipe.toFood());
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Added ${recipe.name} to your log!',
-                              ),
-                              backgroundColor: AppTheme.accentGreen,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add to Daily Log'),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _recipeMacroStat(String label, String value, Color color) {
+  Widget _buildMiniMacroBar(String label, double value, double goal, Color color) {
+    final progress = goal > 0 ? (value / goal).clamp(0.0, 1.0) : 0.0;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+          style: const TextStyle(color: AppTheme.primaryText, fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: 90,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 12,
+              backgroundColor: AppTheme.secondaryText.withValues(alpha: 0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '${value.toInt()} / ${goal.toInt()} g',
+          style: const TextStyle(color: AppTheme.primaryText, fontSize: 12, fontWeight: FontWeight.bold),
         ),
       ],
     );
   }
 
-  void _showAddFoodDialog(BuildContext context, TranslationProvider tp) {
-    showDialog(context: context, builder: (context) => const AddFoodDialog());
+  void _showAddFoodDialog(BuildContext context, AppLocalizations l10n, {String? mealType}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddFoodSearchSheet(mealType: mealType),
+      ),
+    );
   }
 
-  void _showAddVitaminDialog(BuildContext context, TranslationProvider tp) {
+  void _showAddVitaminDialog(BuildContext context, AppLocalizations l10n) {
     String selectedType = NutritionProvider.micronutrientRDIs.keys.first;
     final amountController = TextEditingController();
 
@@ -662,7 +413,7 @@ class NutritionPage extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          title: Text(tp.translate('add_vitamin')),
+          title: Text(l10n.addVitamin),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -670,7 +421,16 @@ class NutritionPage extends StatelessWidget {
                 initialValue: selectedType,
                 dropdownColor: AppTheme.cardBackground,
                 decoration: InputDecoration(
-                  labelText: tp.translate('vitamin_type'),
+                  labelText: l10n.vitaminType,
+                  labelStyle: const TextStyle(color: AppTheme.secondaryText),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.5)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.accentGreen),
+                  ),
                 ),
                 items: NutritionProvider.micronutrientRDIs.keys.map((type) {
                   return DropdownMenuItem(
@@ -686,12 +446,22 @@ class NutritionPage extends StatelessWidget {
               TextField(
                 controller: amountController,
                 decoration: InputDecoration(
-                  labelText: tp.translate('amount'),
+                  labelText: l10n.amount,
+                  labelStyle: const TextStyle(color: AppTheme.secondaryText),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.5)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.accentGreen),
+                  ),
                   suffixText:
                       selectedType.contains('vitamin_a') ||
                           selectedType.contains('vitamin_d')
                       ? 'mcg'
                       : 'mg',
+                  suffixStyle: const TextStyle(color: AppTheme.secondaryText),
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -701,7 +471,7 @@ class NutritionPage extends StatelessWidget {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                tp.translate('cancel'),
+                l10n.cancel,
                 style: const TextStyle(color: AppTheme.secondaryText),
               ),
             ),
@@ -716,7 +486,7 @@ class NutritionPage extends StatelessWidget {
                 }
                 Navigator.pop(context);
               },
-              child: Text(tp.translate('add')),
+              child: Text(l10n.add),
             ),
           ],
         ),
@@ -725,302 +495,560 @@ class NutritionPage extends StatelessWidget {
   }
 }
 
-class AddFoodDialog extends StatefulWidget {
-  const AddFoodDialog({super.key});
+class AddFoodSearchSheet extends StatefulWidget {
+  final String? mealType;
+
+  const AddFoodSearchSheet({super.key, this.mealType});
 
   @override
-  State<AddFoodDialog> createState() => _AddFoodDialogState();
+  State<AddFoodSearchSheet> createState() => _AddFoodSearchSheetState();
 }
 
-class _AddFoodDialogState extends State<AddFoodDialog> {
-  final _nameController = TextEditingController();
-  final _caloriesController = TextEditingController();
-  final _proteinController = TextEditingController();
-  final _carbsController = TextEditingController();
-  final _fatsController = TextEditingController();
-  final _weightController = TextEditingController(text: '100');
-  final _searchController = TextEditingController();
+/// Search tabs of the add-food screen.
+enum _FoodTab { search, recent, favorites }
 
-  Food? _selectedPreset;
-  List<Food> _filteredPresets = NutritionProvider.presets;
+/// What the category boxes filter on, mapped to catalog entry types.
+enum _FoodCategory {
+  foods('Foods', Icons.restaurant, AppTheme.accentOrange,
+      [Enum$FoodEntryType.FOOD, Enum$FoodEntryType.PRODUCT]),
+  recipes('Recipes', Icons.menu_book, AppTheme.accentYellow,
+      [Enum$FoodEntryType.RECIPE]);
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final List<Enum$FoodEntryType> types;
+
+  const _FoodCategory(this.label, this.icon, this.color, this.types);
+}
+
+class _AddFoodSearchSheetState extends State<AddFoodSearchSheet> {
+  /// Searches shorter than this return too much noise to be useful.
+  static const minQueryLength = 2;
+  static const _debounce = Duration(milliseconds: 350);
+
+  final _searchController = TextEditingController();
+  Timer? _debounceTimer;
+  int _searchGeneration = 0;
+
+  List<Food> _results = [];
+  bool _isSearching = false;
+  bool _searchFailed = false;
+
+  // Foods logged from this screen, shown in the "Just Added" sheet.
+  // Their id is the backend meal entry id, so they can be undone.
+  final List<Food> _sessionAddedFoods = [];
+  final Set<String> _animatingFoodIds = {};
+  bool _justAddedAnimation = false;
+
+  _FoodCategory _selectedCategory = _FoodCategory.foods;
+  _FoodTab _selectedTab = _FoodTab.search;
+
+  String get _mealType => widget.mealType ?? 'Snacks';
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_filterPresets);
+    _searchController.addListener(_onQueryChanged);
   }
 
-  void _filterPresets() {
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onQueryChanged() {
+    _debounceTimer?.cancel();
+    if (_selectedTab != _FoodTab.search) {
+      setState(() {}); // Recent / Favorites filter locally
+      return;
+    }
+    _debounceTimer = Timer(_debounce, _search);
+  }
+
+  Future<void> _search() async {
+    final query = _searchController.text.trim();
+    final generation = ++_searchGeneration;
+    if (query.length < minQueryLength) {
+      setState(() {
+        _results = [];
+        _isSearching = false;
+        _searchFailed = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearching = true);
+    final provider = Provider.of<NutritionProvider>(context, listen: false);
+    final result = await provider.searchFoods(
+      query,
+      types: _selectedCategory.types,
+      limit: 25,
+    );
+    // Ignore responses to queries the user has already typed past
+    if (!mounted || generation != _searchGeneration) return;
     setState(() {
-      _filteredPresets = NutritionProvider.presets
-          .where(
-            (p) => p.name.toLowerCase().contains(
-              _searchController.text.toLowerCase(),
+      _isSearching = false;
+      _searchFailed = result == null;
+      _results =
+          result?.items.map(NutritionProvider.foodFromSearchItem).toList() ?? [];
+    });
+  }
+
+  /// Foods to show for the current tab and search text.
+  List<Food> _visibleFoods(NutritionProvider provider) {
+    if (_selectedTab == _FoodTab.search) return _results;
+    final query = _searchController.text.trim().toLowerCase();
+    final base = _selectedTab == _FoodTab.recent
+        ? provider.recentFoods
+        : provider.favoriteFoods;
+    return base.where((f) => f.name.toLowerCase().contains(query)).toList();
+  }
+
+  /// Logs one serving (or 100 g when the serving size is unknown).
+  Future<void> _quickAdd(Food food) async {
+    final grams = food.servingSizeG ?? 100;
+    final provider = Provider.of<NutritionProvider>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _animatingFoodIds.add(food.id));
+
+    final entryId = await provider.addFoodToMeal(
+      foodEntryId: food.id,
+      mealType: _mealType,
+      quantityG: grams,
+      food: food,
+    );
+    if (!mounted) return;
+
+    if (entryId == null) {
+      setState(() => _animatingFoodIds.remove(food.id));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not add the food. Please try again.')),
+      );
+      return;
+    }
+    setState(() => _sessionAddedFoods.add(_loggedFood(food, entryId, grams)));
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _animatingFoodIds.remove(food.id));
+    });
+    _triggerJustAddedAnimation();
+  }
+
+  /// A logged entry for the "Just Added" list, with totals for [grams].
+  static Food _loggedFood(Food food, String entryId, double grams) {
+    final ratio = grams / 100;
+    return food.copyWith(
+      id: entryId,
+      calories: food.calories * ratio,
+      protein: food.protein * ratio,
+      carbs: food.carbs * ratio,
+      fats: food.fats * ratio,
+    );
+  }
+
+  Future<void> _openDetails(Food food) async {
+    final added = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FoodDetailsPage(food: food, mealType: _mealType),
+      ),
+    );
+    if (added is Food && mounted) {
+      setState(() => _sessionAddedFoods.add(added));
+      _triggerJustAddedAnimation();
+    }
+  }
+
+  Future<void> _scanBarcode() async {
+    final barcode = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const BarcodeScannerPage()),
+    );
+    if (barcode is! String || !mounted) return;
+
+    final provider = Provider.of<NutritionProvider>(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    final food = await provider.lookupBarcode(barcode);
+    if (!mounted) return;
+    if (food == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('No product found for barcode $barcode')),
+      );
+      return;
+    }
+    await _openDetails(food);
+  }
+
+  void _triggerJustAddedAnimation() {
+    setState(() => _justAddedAnimation = true);
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _justAddedAnimation = false);
+    });
+  }
+
+  Widget _buildCategoryBox(_FoodCategory category) {
+    final isSelected = _selectedCategory == category;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedCategory = category);
+        _search();
+      },
+      child: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            height: 64,
+            width: 64,
+            decoration: BoxDecoration(
+              color: isSelected ? category.color.withValues(alpha: 0.2) : AppTheme.cardBackground.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isSelected ? category.color : Colors.transparent, width: 2),
             ),
-          )
-          .toList();
-    });
+            alignment: Alignment.center,
+            child: Icon(category.icon, size: 28, color: category.color),
+          ),
+          const SizedBox(height: 8),
+          Text(category.label, style: TextStyle(color: isSelected ? AppTheme.primaryText : AppTheme.secondaryText, fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+        ],
+      ),
+    );
   }
 
-  void _onPresetSelected(Food preset) {
-    setState(() {
-      _selectedPreset = preset;
-      _nameController.text = preset.name;
-      _updateFieldsFromWeight();
-    });
+  Widget _buildTab(String label, _FoodTab tab) {
+    final isSelected = _selectedTab == tab;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _selectedTab = tab);
+          if (tab == _FoodTab.search) _search();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: AppTheme.cardBackground,
+                  borderRadius: BorderRadius.circular(8),
+                )
+              : null,
+          alignment: Alignment.center,
+          child: Text(label, style: TextStyle(color: isSelected ? AppTheme.primaryText : AppTheme.secondaryText, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 13)),
+        ),
+      ),
+    );
   }
 
-  void _updateFieldsFromWeight() {
-    if (_selectedPreset == null) return;
-    final weight = double.tryParse(_weightController.text) ?? 0;
-    final ratio = weight / 100.0;
+  Widget _buildEmptyState() {
+    final query = _searchController.text.trim();
+    final String message;
+    IconData icon = Icons.search_off;
+    switch (_selectedTab) {
+      case _FoodTab.recent:
+        message = 'Foods you log will show up here.';
+      case _FoodTab.favorites:
+        message = 'Tap the star on a food to keep it here.';
+      case _FoodTab.search:
+        if (_searchFailed) {
+          icon = Icons.cloud_off;
+          message = 'Could not reach the food database. Check your connection and try again.';
+        } else if (query.length < minQueryLength) {
+          icon = Icons.search;
+          message = 'Search thousands of foods, or scan a barcode.';
+        } else {
+          message = 'No ${_selectedCategory.label.toLowerCase()} found for "$query". Try another name or scan the barcode.';
+        }
+    }
 
-    _caloriesController.text = (_selectedPreset!.kcalPer100g! * ratio)
-        .toInt()
-        .toString();
-    _proteinController.text = (_selectedPreset!.protein * ratio)
-        .toStringAsFixed(1);
-    _carbsController.text = (_selectedPreset!.carbs * ratio).toStringAsFixed(1);
-    _fatsController.text = (_selectedPreset!.fats * ratio).toStringAsFixed(1);
+    // Scrollable so long messages still fit on short screens / with the keyboard open
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: AppTheme.secondaryText),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.primaryText, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSessionAddedFoods() {
+    showModalBottomSheet(
+      context: context,
+      barrierColor: Colors.transparent,
+      backgroundColor: AppTheme.backgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: AppTheme.secondaryText.withValues(alpha: 0.2), width: 1),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              height: MediaQuery.of(context).size.height * 0.5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Just Added', style: TextStyle(color: AppTheme.primaryText, fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: _sessionAddedFoods.isEmpty
+                      ? const Center(child: Text('No foods added yet', style: TextStyle(color: AppTheme.secondaryText)))
+                      : ListView.separated(
+                      itemCount: _sessionAddedFoods.length,
+                      separatorBuilder: (context, index) => Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),
+                      itemBuilder: (context, index) {
+                        final food = _sessionAddedFoods[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(food.name, style: const TextStyle(color: AppTheme.primaryText, fontSize: 16)),
+                          subtitle: Text('${food.calories.round()} kcal', style: const TextStyle(color: AppTheme.secondaryText, fontSize: 12)),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline, color: AppTheme.accentOrange),
+                            tooltip: 'Remove',
+                            onPressed: () async {
+                              final navigator = Navigator.of(context);
+                              final removed = await Provider.of<NutritionProvider>(context, listen: false)
+                                  .deleteMealEntry(food.id);
+                              if (!removed || !mounted) return;
+                              setModalState(() => _sessionAddedFoods.remove(food));
+                              setState(() {}); // trigger update in parent pill
+                              if (_sessionAddedFoods.isEmpty) navigator.pop();
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
+    final provider = Provider.of<NutritionProvider>(context);
+    final foods = _visibleFoods(provider);
 
-    return AlertDialog(
-      backgroundColor: AppTheme.cardBackground,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Text(
-        tp.translate('add_food'),
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Search & Presets
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    tp.translate('presets'),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.accentGreen,
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leadingWidth: 160,
+        leading: GestureDetector(
+          onTap: _sessionAddedFoods.isNotEmpty ? _showSessionAddedFoods : null,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                  transform: Matrix4.identity()..scaleByDouble(_justAddedAnimation ? 1.05 : 1.0, _justAddedAnimation ? 1.05 : 1.0, 1.0, 1.0),
+                  transformAlignment: Alignment.centerLeft,
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _justAddedAnimation ? AppTheme.accentGreen.withValues(alpha: 0.2) : AppTheme.cardBackground,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: _justAddedAnimation ? AppTheme.accentGreen : Colors.transparent,
+                      width: 1.5,
                     ),
                   ),
-                  if (_selectedPreset != null)
-                    GestureDetector(
-                      onTap: () => setState(() => _selectedPreset = null),
-                      child: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.redAccent,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: tp.translate('search_foods'),
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  child: Text(
+                    _sessionAddedFoods.isEmpty ? 'Just Added' : 'Just Added (${_sessionAddedFoods.length})',
+                    style: const TextStyle(color: AppTheme.accentGreen, fontSize: 12, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 44,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _filteredPresets.length,
-                  itemBuilder: (context, index) {
-                    final preset = _filteredPresets[index];
-                    final isSelected = _selectedPreset?.id == preset.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ActionChip(
-                        label: Text(preset.name),
-                        onPressed: () => _onPresetSelected(preset),
-                        backgroundColor: isSelected
-                            ? AppTheme.accentGreen
-                            : AppTheme.cardBackground,
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? AppTheme.backgroundColor
-                              : AppTheme.primaryText,
-                          fontSize: 12,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(
-                            color: isSelected
-                                ? AppTheme.accentGreen
-                                : AppTheme.secondaryText.withOpacity(0.3),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Divider(color: AppTheme.secondaryText.withOpacity(0.1)),
-              const SizedBox(height: 16),
-
-              if (_selectedPreset != null) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _weightController,
-                        decoration: InputDecoration(
-                          labelText: tp.translate('weight_g'),
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (_) => _updateFieldsFromWeight(),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _selectedPreset!.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '${_selectedPreset!.kcalPer100g} ${tp.translate('kcal')} ${tp.translate('per_100g')}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppTheme.secondaryText,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
               ],
+            ),
+          ),
+        ),
+        title: Text(
+          widget.mealType ?? l10n.addFood,
+          style: const TextStyle(color: AppTheme.primaryText, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          // Search box
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.cardBackground.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.accentGreen, width: 1.5),
+              ),
+              child: TextField(
+                key: const Key('foodSearchField'),
+                controller: _searchController,
+                style: const TextStyle(color: AppTheme.primaryText, fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: 'What did you have for ${widget.mealType?.toLowerCase() ?? 'meal'}?',
+                  hintStyle: TextStyle(color: AppTheme.secondaryText.withValues(alpha: 0.8), fontSize: 15),
+                  prefixIcon: const Icon(Icons.search, color: AppTheme.secondaryText, size: 24),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code_scanner, color: AppTheme.secondaryText, size: 24),
+                    tooltip: 'Scan barcode',
+                    onPressed: _scanBarcode,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
 
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: tp.translate('food_name'),
-                  hintText: tp.translate('food_name_hint'),
-                ),
+          // Categories row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildCategoryBox(_FoodCategory.foods),
+                const SizedBox(width: 16),
+                _buildCategoryBox(_FoodCategory.recipes),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Tabs
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.cardBackground.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(8),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _caloriesController,
-                decoration: InputDecoration(
-                  labelText: tp.translate('calories'),
-                  hintText: '350',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              Row(
+              child: Row(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _proteinController,
-                      decoration: InputDecoration(
-                        labelText: tp.translate('protein_g'),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _carbsController,
-                      decoration: InputDecoration(
-                        labelText: tp.translate('carbs_g'),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _fatsController,
-                      decoration: InputDecoration(
-                        labelText: tp.translate('fats_g'),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                    ),
-                  ),
+                  _buildTab('Search', _FoodTab.search),
+                  _buildTab('Recent', _FoodTab.recent),
+                  _buildTab('Favorites', _FoodTab.favorites),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: 16),
+
+          // Results
+          Expanded(
+            child: _isSearching && _selectedTab == _FoodTab.search
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.accentGreen))
+                : foods.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.separated(
+                        itemCount: foods.length,
+                        separatorBuilder: (context, index) => Divider(color: AppTheme.secondaryText.withValues(alpha: 0.1), height: 1),
+                        itemBuilder: (context, index) => _buildFoodTile(foods[index], provider),
+                      ),
+          ),
+
+          // Bottom sticky "Done" button
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 40.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentGreen,
+                  foregroundColor: AppTheme.backgroundColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  elevation: 0,
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            tp.translate('cancel'),
-            style: const TextStyle(color: AppTheme.secondaryText),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (_nameController.text.isEmpty) return;
-
-            final weight = double.tryParse(_weightController.text) ?? 100;
-            final ratio = weight / 100.0;
-            final scaledMicros = <String, double>{};
-
-            if (_selectedPreset != null) {
-              _selectedPreset!.micronutrients.forEach((key, value) {
-                scaledMicros[key] = value * ratio;
-              });
-            }
-
-            final food = Food(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              name: _nameController.text,
-              calories: double.tryParse(_caloriesController.text) ?? 0,
-              protein: double.tryParse(_proteinController.text) ?? 0,
-              carbs: double.tryParse(_carbsController.text) ?? 0,
-              fats: double.tryParse(_fatsController.text) ?? 0,
-              micronutrients: scaledMicros,
-              dateAdded: DateTime.now(),
-            );
-            Provider.of<NutritionProvider>(
-              context,
-              listen: false,
-            ).addFood(food);
-            Navigator.pop(context);
-          },
-          child: Text(tp.translate('add')),
-        ),
-      ],
     );
   }
+
+  Widget _buildFoodTile(Food food, NutritionProvider provider) {
+    final serving = food.servingSizeG;
+    final servingLabel = serving != null ? '1 serving (${_formatGrams(serving)} g)' : '100 g';
+    final servingCalories = food.calories * (serving ?? 100) / 100;
+    final isFav = provider.isFavorite(food.id);
+    final isAnimating = _animatingFoodIds.contains(food.id);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      title: Text(food.name, style: const TextStyle(color: AppTheme.primaryText, fontSize: 16, fontWeight: FontWeight.w500)),
+      subtitle: Text(
+        [if (food.brand != null && food.brand!.isNotEmpty) food.brand!, servingLabel].join(' • '),
+        style: TextStyle(color: AppTheme.secondaryText.withValues(alpha: 0.8), fontSize: 12),
+      ),
+      onTap: () => _openDetails(food),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${servingCalories.round()} kcal', style: const TextStyle(color: AppTheme.primaryText, fontSize: 14)),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () => provider.toggleFavorite(food),
+            child: Icon(
+              isFav ? Icons.star : Icons.star_border,
+              color: isFav ? AppTheme.accentYellow : AppTheme.secondaryText.withValues(alpha: 0.5),
+              size: 24,
+              semanticLabel: isFav ? 'Remove from favorites' : 'Add to favorites',
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: isAnimating ? null : () => _quickAdd(food),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isAnimating ? AppTheme.accentGreen : Colors.transparent,
+                border: Border.all(color: AppTheme.accentGreen, width: 1.5),
+              ),
+              child: Icon(
+                isAnimating ? Icons.check : Icons.add,
+                color: isAnimating ? AppTheme.backgroundColor : AppTheme.accentGreen,
+                size: 18,
+                semanticLabel: 'Add ${food.name}',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatGrams(double grams) =>
+      grams == grams.roundToDouble() ? grams.toInt().toString() : grams.toStringAsFixed(1);
 }
 
 class _CalorieMacroChart extends StatefulWidget {
@@ -1047,17 +1075,22 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
 
   @override
   Widget build(BuildContext context) {
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
     final caloriesRemaining = (widget.caloriesGoal - widget.caloriesConsumed)
         .clamp(0.0, widget.caloriesGoal);
     final proteinCals = widget.protein * 4;
     final carbsCals = widget.carbs * 4;
     final fatsCals = widget.fats * 9;
+    final totalMacroCals = proteinCals + carbsCals + fatsCals;
+    
+    final pPct = totalMacroCals > 0 ? (proteinCals / totalMacroCals * 100).round() : 0;
+    final cPct = totalMacroCals > 0 ? (carbsCals / totalMacroCals * 100).round() : 0;
+    final fPct = totalMacroCals > 0 ? (fatsCals / totalMacroCals * 100).round() : 0;
 
     return Center(
       child: SizedBox(
-        width: 220,
-        height: 220,
+        width: 150,
+        height: 150,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -1078,61 +1111,45 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
                   },
                 ),
                 sectionsSpace: 0,
-                centerSpaceRadius: 85,
+                centerSpaceRadius: 65,
                 startDegreeOffset: -90,
                 sections: [
+                  if (totalMacroCals == 0) // Show empty gray circle if no macros
+                    PieChartSectionData(
+                      value: 1,
+                      color: AppTheme.secondaryText.withValues(alpha: 0.2),
+                      radius: 10,
+                      showTitle: false,
+                    ),
                   // Protein Section (Index 0)
                   if (proteinCals > 0)
                     PieChartSectionData(
                       value: proteinCals,
-                      color: AppTheme.accentBlue,
-                      radius: _touchedIndex == 0 ? 30 : 22,
+                      color: (widget.caloriesConsumed > widget.caloriesGoal) ? Colors.redAccent : AppTheme.accentBlue,
+                      radius: _touchedIndex == 0 ? 16 : 10,
                       showTitle: false,
-                      badgeWidget: _buildMacroBadge(
-                        Icons.egg,
-                        AppTheme.accentBlue,
-                        isHovered: _touchedIndex == 0,
-                        value: '${widget.protein.toInt()}g',
-                      ),
-                      badgePositionPercentageOffset: 0.98,
                     ),
                   // Carbs Section (Index 1)
                   if (carbsCals > 0)
                     PieChartSectionData(
                       value: carbsCals,
-                      color: AppTheme.accentGreen,
-                      radius: _touchedIndex == 1 ? 30 : 22,
+                      color: (widget.caloriesConsumed > widget.caloriesGoal) ? Colors.redAccent : AppTheme.accentGreen,
+                      radius: _touchedIndex == 1 ? 16 : 10,
                       showTitle: false,
-                      badgeWidget: _buildMacroBadge(
-                        Icons.bakery_dining,
-                        AppTheme.accentGreen,
-                        isHovered: _touchedIndex == 1,
-                        value: '${widget.carbs.toInt()}g',
-                      ),
-                      badgePositionPercentageOffset: 0.98,
                     ),
                   // Fats Section (Index 2)
                   if (fatsCals > 0)
                     PieChartSectionData(
                       value: fatsCals,
-                      color: AppTheme.accentOrange,
-                      radius: _touchedIndex == 2 ? 30 : 22,
+                      color: (widget.caloriesConsumed > widget.caloriesGoal) ? Colors.redAccent : AppTheme.accentOrange,
+                      radius: _touchedIndex == 2 ? 16 : 10,
                       showTitle: false,
-                      badgeWidget: _buildMacroBadge(
-                        Icons.opacity,
-                        AppTheme.accentOrange,
-                        isHovered: _touchedIndex == 2,
-                        value: '${widget.fats.toInt()}g',
-                      ),
-                      badgePositionPercentageOffset: 0.98,
                     ),
-                  // Remaining Calories Section (Index 3 if all macros exist, otherwise varies)
-                  // To keep it simple, we check remaining last
                   if (caloriesRemaining > 0)
                     PieChartSectionData(
                       value: caloriesRemaining,
-                      color: AppTheme.cardBackground,
-                      radius: 15,
+                      color: AppTheme.secondaryText.withValues(alpha: 0.2),
+                      radius: 10,
                       showTitle: false,
                     ),
                 ],
@@ -1141,31 +1158,41 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal))
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 2),
+                    child: Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
+                  ),
                 Text(
                   _touchedIndex == 0
-                      ? '${proteinCals.toInt()}'
+                      ? '$pPct%'
                       : _touchedIndex == 1
-                      ? '${carbsCals.toInt()}'
+                      ? '$cPct%'
                       : _touchedIndex == 2
-                      ? '${fatsCals.toInt()}'
-                      : caloriesRemaining.toInt().toString(),
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    color: AppTheme.primaryText,
+                      ? '$fPct%'
+                      : '${(widget.caloriesConsumed - widget.caloriesGoal).abs().toInt()}',
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    fontSize: 42,
+                    fontSize: (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal)) ? 26 : null,
+                    color: (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal))
+                        ? Colors.redAccent
+                        : null,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   _touchedIndex == 0
-                      ? '${tp.translate('protein').toUpperCase()} KCAL'
+                      ? l10n.protein
                       : _touchedIndex == 1
-                      ? '${tp.translate('carbs').toUpperCase()} KCAL'
+                      ? l10n.carbs
                       : _touchedIndex == 2
-                      ? '${tp.translate('fats').toUpperCase()} KCAL'
-                      : tp.translate('kcal_left'),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.bold,
+                      ? l10n.fats
+                      : ((widget.caloriesConsumed > widget.caloriesGoal) ? 'Over Goal' : 'Remaining'),
+                  style: TextStyle(
+                    color: (_touchedIndex == -1 && (widget.caloriesConsumed > widget.caloriesGoal))
+                        ? Colors.redAccent
+                        : AppTheme.secondaryText,
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -1176,44 +1203,148 @@ class _CalorieMacroChartState extends State<_CalorieMacroChart> {
     );
   }
 
-  Widget _buildMacroBadge(
-    IconData icon,
-    Color color, {
-    required bool isHovered,
-    required String value,
-  }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: EdgeInsets.symmetric(horizontal: isHovered ? 8 : 4, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 8,
-            spreadRadius: 1,
+}
+
+class _MealSection extends StatelessWidget {
+  final int index;
+  final String mealName;
+  final String emojiStr;
+  final int goalCals;
+  final List<Food> foods;
+  final VoidCallback onAddTap;
+  final VoidCallback onMealTap;
+
+  const _MealSection({
+    required this.index,
+    required this.mealName,
+    required this.emojiStr,
+    required this.goalCals,
+    required this.foods,
+    required this.onAddTap,
+    required this.onMealTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double totalCals = foods.fold(0.0, (sum, food) => sum + food.calories);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.backgroundColor,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: MealIconMapping.buildIcon(emojiStr, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: onMealTap,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mealName,
+                          style: const TextStyle(color: AppTheme.primaryText, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${totalCals.toInt()} / $goalCals Cal',
+                          style: const TextStyle(color: AppTheme.secondaryText, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: onAddTap,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primaryText,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.add, color: AppTheme.backgroundColor, size: 24),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          if (isHovered) ...[
-            const SizedBox(width: 4),
-            Text(
-              value,
-              style: TextStyle(
-                color: AppTheme.primaryText,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+        ),
+        if (foods.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: foods.map((food) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '- ${food.name}',
+                        style: const TextStyle(color: AppTheme.secondaryText, fontSize: 14),
+                      ),
+                    ),
+                    Text(
+                      '${food.calories.toInt()} kcal',
+                      style: const TextStyle(color: AppTheme.secondaryText, fontSize: 14),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                      tooltip: 'Remove ${food.name}',
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final removed = await Provider.of<NutritionProvider>(
+                          context,
+                          listen: false,
+                        ).deleteMealEntry(food.id);
+                        if (!removed) {
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('Could not remove the food. Please try again.')),
+                          );
+                        }
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(left: 20, bottom: 8, top: 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: ReorderableDragStartListener(
+              index: index,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
+                ),
+                child: const Icon(Icons.drag_handle, color: AppTheme.secondaryText, size: 24),
               ),
             ),
-          ],
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
+

@@ -4,7 +4,10 @@ import 'package:fitlyfe_frontend/providers/app_state.dart';
 import 'package:fitlyfe_frontend/theme/app_theme.dart';
 import 'package:fitlyfe_frontend/widgets/logout_button.dart';
 
-import 'package:fitlyfe_frontend/providers/translation_provider.dart';
+import 'package:fitlyfe_frontend/l10n/generated/app_localizations.dart';
+import 'package:fitlyfe_frontend/l10n/l10n_extensions.dart';
+import 'package:fitlyfe_frontend/providers/locale_provider.dart';
+import 'package:fitlyfe_frontend/widgets/language_selector.dart';
 import 'package:fitlyfe_frontend/providers/workout_provider.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -13,7 +16,8 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    final tp = Provider.of<TranslationProvider>(context);
+    final l10n = AppLocalizations.of(context);
+    final localeProvider = Provider.of<LocaleProvider>(context);
     final user = appState.currentUser;
 
     return Scaffold(
@@ -32,7 +36,7 @@ class ProfilePage extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      tp.translate('profile'),
+                      l10n.profile,
                       style: Theme.of(context).textTheme.displayMedium,
                       textAlign: TextAlign.center,
                     ),
@@ -53,7 +57,7 @@ class ProfilePage extends StatelessWidget {
                   children: [
                     // Profile Picture
                     GestureDetector(
-                      onTap: () => _showAvatarSelection(context, appState, tp),
+                      onTap: () => _showAvatarSelection(context, appState, l10n),
                       child: Stack(
                         children: [
                           Container(
@@ -61,19 +65,29 @@ class ProfilePage extends StatelessWidget {
                             height: 100,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppTheme.accentGreen.withOpacity(0.2),
-                              border: Border.all(color: AppTheme.accentGreen.withOpacity(0.5), width: 2),
-                            ),
-                            child: user.imageUrl != null 
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(50),
-                                  child: Image.network(user.imageUrl!, fit: BoxFit.cover),
-                                )
-                              : const Icon(
-                                  Icons.person,
-                                  size: 60,
-                                  color: AppTheme.accentGreen,
+                              color: AppTheme.accentGreen.withValues(
+                                alpha: 0.2,
+                              ),
+                              border: Border.all(
+                                color: AppTheme.accentGreen.withValues(
+                                  alpha: 0.5,
                                 ),
+                                width: 2,
+                              ),
+                            ),
+                            child: user.imageUrl != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(50),
+                                    child: Image.network(
+                                      user.imageUrl!,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: AppTheme.accentGreen,
+                                  ),
                           ),
                           Positioned(
                             bottom: 0,
@@ -112,10 +126,15 @@ class ProfilePage extends StatelessWidget {
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => _showEditMetricsDialog(context, appState, tp, 'weight'),
+                            onTap: () => _showEditMetricsDialog(
+                              context,
+                              appState,
+                              l10n,
+                              'weight',
+                            ),
                             child: _buildMetricCard(
                               context,
-                              tp.translate('weight').toUpperCase(),
+                              l10n.weight.toUpperCase(),
                               user.weight.toInt().toString(),
                               'kg',
                             ),
@@ -124,10 +143,15 @@ class ProfilePage extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => _showEditMetricsDialog(context, appState, tp, 'height'),
+                            onTap: () => _showEditMetricsDialog(
+                              context,
+                              appState,
+                              l10n,
+                              'height',
+                            ),
                             child: _buildMetricCard(
                               context,
-                              tp.translate('height').toUpperCase(),
+                              l10n.height.toUpperCase(),
                               user.height.toInt().toString(),
                               'cm',
                             ),
@@ -136,10 +160,15 @@ class ProfilePage extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => _showEditMetricsDialog(context, appState, tp, 'age'),
+                            onTap: () => _showEditMetricsDialog(
+                              context,
+                              appState,
+                              l10n,
+                              'age',
+                            ),
                             child: _buildMetricCard(
                               context,
-                              tp.translate('age').toUpperCase(),
+                              l10n.age.toUpperCase(),
                               user.age.toString(),
                               'yo',
                             ),
@@ -154,23 +183,31 @@ class ProfilePage extends StatelessWidget {
 
               // Primary Goal Selector
               GestureDetector(
-                onTap: () => _showEditGoalDialog(context, appState, tp),
+                onTap: () => _showEditGoalDialog(context, appState, l10n),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.cardBackground,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppTheme.accentGreen.withOpacity(0.3)),
+                    border: Border.all(
+                      color: AppTheme.accentGreen.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.accentGreen.withOpacity(0.1),
+                          color: AppTheme.accentGreen.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.flag, color: AppTheme.accentGreen),
+                        child: const Icon(
+                          Icons.flag,
+                          color: AppTheme.accentGreen,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -178,24 +215,28 @@ class ProfilePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              tp.translate('primary_goal') ?? 'Primary Goal',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                letterSpacing: 1.2,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.secondaryText,
-                              ),
+                              l10n.primaryGoal,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    letterSpacing: 1.2,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.secondaryText,
+                                  ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              tp.translate(user.goal.toLowerCase().replaceAll(' ', '_')) ?? user.goal,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              l10n.goalLabel(user.goal),
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                       ),
-                      const Icon(Icons.edit, color: AppTheme.secondaryText, size: 20),
+                      const Icon(
+                        Icons.edit,
+                        color: AppTheme.secondaryText,
+                        size: 20,
+                      ),
                     ],
                   ),
                 ),
@@ -203,50 +244,70 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Account Section
-              _buildSectionHeader(context, tp.translate('account').toUpperCase()),
+              _buildSectionHeader(
+                context,
+                l10n.account.toUpperCase(),
+              ),
               const SizedBox(height: 16),
               _buildSettingItem(
                 context,
                 icon: Icons.person_outline,
-                title: tp.translate('personal_details'),
-                subtitle: tp.translate('name_email'),
-                onTap: () => _showEditProfileDialog(context, appState, tp),
+                title: l10n.personalDetails,
+                subtitle: l10n.nameEmail,
+                onTap: () => _showEditProfileDialog(context, appState, l10n),
               ),
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
                 icon: Icons.security,
-                title: tp.translate('privacy_security'),
-                subtitle: tp.translate('password_2fa'),
+                title: l10n.privacySecurity,
+                subtitle: l10n.password2fa,
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Privacy settings are up to date!'))
+                    const SnackBar(
+                      content: Text('Privacy settings are up to date!'),
+                    ),
                   );
                 },
               ),
               const SizedBox(height: 32),
 
               // Preferences Section
-              _buildSectionHeader(context, tp.translate('preferences').toUpperCase()),
+              _buildSectionHeader(
+                context,
+                l10n.preferences.toUpperCase(),
+              ),
               const SizedBox(height: 16),
               _buildSettingItem(
                 context,
                 icon: Icons.notifications_outlined,
-                title: tp.translate('notifications'),
-                subtitle: tp.translate('push_email'),
+                title: l10n.notifications,
+                subtitle: l10n.pushEmail,
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notification settings updated!'))
+                    const SnackBar(
+                      content: Text('Notification settings updated!'),
+                    ),
                   );
                 },
               ),
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
+                icon: Icons.language,
+                title: l10n.language,
+                subtitle: localeProvider.locale == null
+                    ? l10n.languageSystemDefault
+                    : LocaleProvider.nativeName(localeProvider.locale!),
+                onTap: () => _showLanguageSheet(context, l10n),
+              ),
+              const SizedBox(height: 12),
+              _buildSettingItem(
+                context,
                 icon: Icons.palette_outlined,
-                title: tp.translate('appearance'),
-                subtitle: tp.translate('color_theme') ?? 'Color Theme',
-                onTap: () => _showAppearanceDialog(context, appState, tp),
+                title: l10n.appearance,
+                subtitle: l10n.colorTheme,
+                onTap: () => _showAppearanceDialog(context, appState, l10n),
               ),
               const SizedBox(height: 12),
               const LogoutButton(),
@@ -257,7 +318,33 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showAvatarSelection(BuildContext context, AppState appState, TranslationProvider tp) {
+  void _showLanguageSheet(BuildContext context, AppLocalizations l10n) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.backgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.language, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            const LanguageSelector(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAvatarSelection(
+    BuildContext context,
+    AppState appState,
+    AppLocalizations l10n,
+  ) {
     final avatars = [
       'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=Anya',
@@ -268,34 +355,48 @@ class ProfilePage extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.backgroundColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
       builder: (context) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('CHOOSE AVATAR', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'CHOOSE AVATAR',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: avatars.map((url) => GestureDetector(
-                onTap: () {
-                  appState.updateUser(appState.currentUser.copyWith(imageUrl: url));
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.accentGreen, width: 2),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(32),
-                    child: Image.network(url),
-                  ),
-                ),
-              )).toList(),
+              children: avatars
+                  .map(
+                    (url) => GestureDetector(
+                      onTap: () {
+                        appState.updateUser(
+                          appState.currentUser.copyWith(imageUrl: url),
+                        );
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.accentGreen,
+                            width: 2,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(32),
+                          child: Image.network(url),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
             const SizedBox(height: 24),
           ],
@@ -304,21 +405,29 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  void _showEditProfileDialog(BuildContext context, AppState appState, TranslationProvider tp) {
-    final nameController = TextEditingController(text: appState.currentUser.name);
-    final emailController = TextEditingController(text: appState.currentUser.email);
+  void _showEditProfileDialog(
+    BuildContext context,
+    AppState appState,
+    AppLocalizations l10n,
+  ) {
+    final nameController = TextEditingController(
+      text: appState.currentUser.name,
+    );
+    final emailController = TextEditingController(
+      text: appState.currentUser.email,
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.cardBackground,
-        title: Text(tp.translate('personal_details')),
+        title: Text(l10n.personalDetails),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: InputDecoration(labelText: tp.translate('your_name')),
+              decoration: InputDecoration(labelText: l10n.yourName),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -330,7 +439,10 @@ class ProfilePage extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(tp.translate('cancel'), style: const TextStyle(color: AppTheme.secondaryText)),
+            child: Text(
+              l10n.cancel,
+              style: const TextStyle(color: AppTheme.secondaryText),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -340,20 +452,25 @@ class ProfilePage extends StatelessWidget {
               );
               Navigator.pop(context);
             },
-            child: Text(tp.translate('add')),
+            child: Text(l10n.add),
           ),
         ],
       ),
     );
   }
 
-  void _showEditMetricsDialog(BuildContext context, AppState appState, TranslationProvider tp, String type) {
+  void _showEditMetricsDialog(
+    BuildContext context,
+    AppState appState,
+    AppLocalizations l10n,
+    String type,
+  ) {
     final controller = TextEditingController(
-      text: type == 'weight' 
-        ? appState.currentUser.weight.toInt().toString() 
-        : type == 'height' 
-          ? appState.currentUser.height.toInt().toString() 
-          : appState.currentUser.age.toString()
+      text: type == 'weight'
+          ? appState.currentUser.weight.toInt().toString()
+          : type == 'height'
+          ? appState.currentUser.height.toInt().toString()
+          : appState.currentUser.age.toString(),
     );
 
     showDialog(
@@ -365,14 +482,21 @@ class ProfilePage extends StatelessWidget {
           controller: controller,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            suffixText: type == 'weight' ? 'kg' : type == 'height' ? 'cm' : 'years',
+            suffixText: type == 'weight'
+                ? 'kg'
+                : type == 'height'
+                ? 'cm'
+                : 'years',
           ),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(tp.translate('cancel'), style: const TextStyle(color: AppTheme.secondaryText)),
+            child: Text(
+              l10n.cancel,
+              style: const TextStyle(color: AppTheme.secondaryText),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -403,10 +527,7 @@ class ProfilePage extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -414,18 +535,18 @@ class ProfilePage extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(width: 4),
               Padding(
                 padding: const EdgeInsets.only(bottom: 2),
                 child: Text(
                   unit,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.accentGreen,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.accentGreen),
                 ),
               ),
             ],
@@ -440,9 +561,9 @@ class ProfilePage extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Text(
         title,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          letterSpacing: 1.2,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(letterSpacing: 1.2),
       ),
     );
   }
@@ -470,15 +591,9 @@ class ProfilePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
             ),
@@ -492,13 +607,25 @@ class ProfilePage extends StatelessWidget {
       ),
     );
   }
-  void _showEditGoalDialog(BuildContext context, AppState appState, TranslationProvider tp) {
-    final goals = ['Lose Weight', 'Build Muscle', 'Improve Endurance', 'Stay Fit'];
-    
+
+  void _showEditGoalDialog(
+    BuildContext context,
+    AppState appState,
+    AppLocalizations l10n,
+  ) {
+    final goals = [
+      'lose_weight',
+      'build_muscle',
+      'improve_endurance',
+      'stay_fit',
+    ];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.backgroundColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
       builder: (context) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -506,8 +633,8 @@ class ProfilePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              tp.translate('select_goal') ?? 'SELECT GOAL', 
-              style: Theme.of(context).textTheme.titleLarge
+              l10n.selectGoal,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 24),
             ...goals.map((goal) {
@@ -516,14 +643,19 @@ class ProfilePage extends StatelessWidget {
                 onTap: () {
                   // Update AppState
                   appState.updateUserProfile(goal: goal);
-                  
+
                   // Update Workout Recommendations IMMEDIATELY
-                  Provider.of<WorkoutProvider>(context, listen: false).initializeWorkoutsForGoal(goal);
-                  
+                  Provider.of<WorkoutProvider>(
+                    context,
+                    listen: false,
+                  ).initializeWorkoutsForGoal(goal);
+
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${tp.translate('goal_updated_to')} $goal'),
+                      content: Text(
+                        l10n.goalUpdatedTo(l10n.goalLabel(goal)),
+                      ),
                       backgroundColor: AppTheme.accentGreen,
                     ),
                   );
@@ -532,25 +664,33 @@ class ProfilePage extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.accentGreen.withOpacity(0.1) : AppTheme.cardBackground,
+                    color: isSelected
+                        ? AppTheme.accentGreen.withValues(alpha: 0.1)
+                        : AppTheme.cardBackground,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isSelected ? AppTheme.accentGreen : Colors.transparent, 
-                      width: 2
+                      color: isSelected
+                          ? AppTheme.accentGreen
+                          : Colors.transparent,
+                      width: 2,
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         isSelected ? Icons.check_circle : Icons.circle_outlined,
-                        color: isSelected ? AppTheme.accentGreen : AppTheme.secondaryText,
+                        color: isSelected
+                            ? AppTheme.accentGreen
+                            : AppTheme.secondaryText,
                       ),
                       const SizedBox(width: 16),
                       Text(
-                        tp.translate(goal.toLowerCase().replaceAll(' ', '_')) ?? goal,
+                        l10n.goalLabel(goal),
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                           color: AppTheme.primaryText,
                         ),
                       ),
@@ -565,7 +705,12 @@ class ProfilePage extends StatelessWidget {
       ),
     );
   }
-  void _showAppearanceDialog(BuildContext context, AppState appState, TranslationProvider tp) {
+
+  void _showAppearanceDialog(
+    BuildContext context,
+    AppState appState,
+    AppLocalizations l10n,
+  ) {
     final colors = [
       {'name': 'Green', 'color': AppTheme.accentGreen},
       {'name': 'Blue', 'color': AppTheme.accentBlue},
@@ -578,15 +723,17 @@ class ProfilePage extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.backgroundColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
       builder: (context) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              tp.translate('choose_theme') ?? 'CHOOSE THEME', 
-              style: Theme.of(context).textTheme.titleLarge
+              l10n.chooseTheme,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 24),
             Wrap(
@@ -597,7 +744,7 @@ class ProfilePage extends StatelessWidget {
                 final color = item['color'] as Color;
                 final name = item['name'] as String;
                 final isSelected = appState.themeColor == color;
-                
+
                 return GestureDetector(
                   onTap: () {
                     appState.setThemeColor(color);
@@ -611,27 +758,38 @@ class ProfilePage extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
-                          border: isSelected 
-                            ? Border.all(color: AppTheme.primaryText, width: 3)
-                            : null,
+                          border: isSelected
+                              ? Border.all(
+                                  color: AppTheme.primaryText,
+                                  width: 3,
+                                )
+                              : null,
                           boxShadow: [
                             BoxShadow(
-                              color: color.withOpacity(0.4),
+                              color: color.withValues(alpha: 0.4),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: isSelected 
-                          ? const Icon(Icons.check, color: AppTheme.backgroundColor, size: 30)
-                          : null,
+                        child: isSelected
+                            ? const Icon(
+                                Icons.check,
+                                color: AppTheme.backgroundColor,
+                                size: 30,
+                              )
+                            : null,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         name,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isSelected ? AppTheme.primaryText : AppTheme.secondaryText,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? AppTheme.primaryText
+                              : AppTheme.secondaryText,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                         ),
                       ),
                     ],

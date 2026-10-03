@@ -11,6 +11,7 @@ class CircularProgressCard extends StatelessWidget {
   final IconData? icon;
   final String? actionText;
   final VoidCallback? onTap;
+  final bool isWarning;
 
   const CircularProgressCard({
     super.key,
@@ -22,6 +23,7 @@ class CircularProgressCard extends StatelessWidget {
     this.icon,
     this.actionText,
     this.onTap,
+    this.isWarning = false,
   });
 
   @override
@@ -32,7 +34,7 @@ class CircularProgressCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -43,8 +45,8 @@ class CircularProgressCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(24),
-          splashColor: color.withOpacity(0.1),
-          highlightColor: color.withOpacity(0.05),
+          splashColor: color.withValues(alpha: 0.1),
+          highlightColor: color.withValues(alpha: 0.05),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -64,7 +66,7 @@ class CircularProgressCard extends StatelessWidget {
                           strokeWidth: 12,
                           backgroundColor: AppTheme.cardBackground,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            color.withOpacity(0.1),
+                            color.withValues(alpha: 0.1),
                           ),
                         ),
                       ),
@@ -87,7 +89,10 @@ class CircularProgressCard extends StatelessWidget {
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (icon != null) ...[
+                          if (isWarning) ...[
+                            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+                            const SizedBox(height: 4),
+                          ] else if (icon != null) ...[
                             Icon(icon, color: AppTheme.primaryText, size: 20),
                             const SizedBox(height: 4),
                           ],
@@ -95,18 +100,20 @@ class CircularProgressCard extends StatelessWidget {
                             mainValue >= 10000
                                 ? '${(mainValue / 1000).toStringAsFixed(1)}k'
                                 : mainValue.toString(),
-                            style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                              color: AppTheme.primaryText,
-                              fontWeight: FontWeight.bold,
-                              fontSize: mainValue >= 1000 ? 28 : 32,
-                            ),
+                            style: Theme.of(context).textTheme.displayLarge
+                                ?.copyWith(
+                                  color: isWarning ? Colors.redAccent : AppTheme.primaryText,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: mainValue >= 1000 ? 28 : (isWarning ? 26 : 32),
+                                ),
                           ),
                           Text(
                             label,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.secondaryText,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: isWarning ? Colors.redAccent : AppTheme.secondaryText,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                         ],
                       ),

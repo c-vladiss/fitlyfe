@@ -22,20 +22,26 @@ spring:
     type: com.zaxxer.hikari.HikariDataSource
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
-  
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
+      # Flyway owns the schema. Hibernate only checks that the entities match
+      # it and refuses to start if they drift, instead of silently altering it.
+      ddl-auto: validate
+    show-sql: ${SHOW_SQL:false}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${SHOW_SQL:false}
+  flyway:
+    enabled: true
   graphql:
     graphiql:
-      enabled: true
+      # Interactive query editor. Off unless explicitly enabled (see .env.example).
+      enabled: ${GRAPHIQL_ENABLED:false}
 server:
   port: 8081
 
 supabase:
   url: ${SUPABASE_URL}
+
+usda:
+  api-key: ${USDA_API_KEY}
+  # Minimum local results before falling back to the USDA API for a text search
+  search-fallback-threshold: 5

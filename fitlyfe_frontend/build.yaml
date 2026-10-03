@@ -1,0 +1,13 @@
+targets:
+  $default:
+    builders:
+      graphql_codegen:
+        options:
+          # Schema file location
+          schema: lib/graphql/schema.graphql
+          # Output directory for generated files
+          output: lib/graphql/generated/
+          # Add __typename to all selection sets
+          add_typename: true
+          # Use Dart 3 sealed classes for union types
+          sealed_classes: true

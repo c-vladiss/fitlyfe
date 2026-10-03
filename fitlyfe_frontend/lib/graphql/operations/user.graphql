@@ -1,0 +1,50 @@
+query Me {
+  me {
+    id
+    email
+    firstName
+    lastName
+  }
+}
+
+query UserGoals {
+  userGoals {
+    dailyCalories
+    dailyProteinG
+    dailyCarbsG
+    dailyFatG
+    goalWeightKg
+  }
+}
+
+mutation UpdateUserProfile($input: UpdateUserProfileInput!) {
+  updateUserProfile(input: $input) {
+    heightCm
+    weightKg
+    dateOfBirth
+    goal
+    displayName
+  }
+}
+
+mutation UpdateUserGoals(
+  $dailyCalories: Int
+  $dailyProteinG: Float
+  $dailyCarbsG: Float
+  $dailyFatG: Float
+  $goalWeightKg: Float
+) {
+  updateUserGoals(
+    dailyCalories: $dailyCalories
+    dailyProteinG: $dailyProteinG
+    dailyCarbsG: $dailyCarbsG
+    dailyFatG: $dailyFatG
+    goalWeightKg: $goalWeightKg
+  ) {
+    dailyCalories
+    dailyProteinG
+    dailyCarbsG
+    dailyFatG
+    goalWeightKg
+  }
+}

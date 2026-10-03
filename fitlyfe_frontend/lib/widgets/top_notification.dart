@@ -15,7 +15,8 @@ class TopNotification extends StatefulWidget {
   State<TopNotification> createState() => _TopNotificationState();
 }
 
-class _TopNotificationState extends State<TopNotification> with SingleTickerProviderStateMixin {
+class _TopNotificationState extends State<TopNotification>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
 
@@ -30,10 +31,7 @@ class _TopNotificationState extends State<TopNotification> with SingleTickerProv
     _offsetAnimation = Tween<Offset>(
       begin: const Offset(0, -1.5),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
     _controller.forward();
 
@@ -63,7 +61,7 @@ class _TopNotificationState extends State<TopNotification> with SingleTickerProv
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -84,8 +82,13 @@ class _TopNotificationState extends State<TopNotification> with SingleTickerProv
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.close, color: AppTheme.backgroundColor, size: 20),
-              onPressed: () => _controller.reverse().then((_) => widget.onDismiss()),
+              icon: const Icon(
+                Icons.close,
+                color: AppTheme.backgroundColor,
+                size: 20,
+              ),
+              onPressed: () =>
+                  _controller.reverse().then((_) => widget.onDismiss()),
             ),
           ],
         ),

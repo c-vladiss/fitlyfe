@@ -13,4 +13,5 @@ type SyncUserResult {
     firstName: String
     lastName: String
     requiresOnboarding: Boolean!
+    profile: UserProfile
 }
