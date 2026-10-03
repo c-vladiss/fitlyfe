@@ -215,6 +215,8 @@ class GraphQLService {
       QueryOptions(
         document: documentNodeQueryDailyNutrition,
         variables: Variables$Query$DailyNutrition(date: date).toJson(),
+        // Refetched after every add/delete, so it must not come from the cache
+        fetchPolicy: FetchPolicy.networkOnly,
       ),
     );
 

@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:fitlyfe_frontend/providers/nutrition_provider.dart';
-import 'package:fitlyfe_frontend/models/food.dart';
 import 'package:fitlyfe_frontend/services/graphql_service.dart';
 import 'package:fitlyfe_frontend/graphql/operations/nutrition.graphql.dart';
+import 'package:fitlyfe_frontend/graphql/operations/food.graphql.dart';
+import 'package:fitlyfe_frontend/graphql/schema.graphql.dart';
 
 import '../mocks.dart';
 
@@ -18,8 +19,9 @@ void main() {
 
   group('NutritionProvider', () {
     group('initialization', () {
-      test('starts with empty foods list', () {
-        expect(provider.foods, isEmpty);
+      test('starts with no logged food', () {
+        expect(provider.todayFoods, isEmpty);
+        expect(provider.todayCalories, 0);
       });
 
       test('starts with today as selected date', () {
@@ -47,94 +49,44 @@ void main() {
       });
     });
 
-    group('local food management', () {
-      test('addFood adds food to list', () {
-        final food = Food(
-          id: 'test-1',
-          name: 'Test Food',
-          calories: 100,
-          protein: 10,
-          carbs: 20,
-          fats: 5,
-          dateAdded: DateTime.now(),
+    group('logged food', () {
+      test('todayFoods lists the backend entries of the selected day', () async {
+        when(() => mockGraphQLService.getDailyNutrition(any())).thenAnswer(
+          (_) async => TestData.dailyNutrition(meals: [
+            TestData.meal('Breakfast', [('e1', 'Oats', 80, 300), ('e2', 'Milk', 200, 120)]),
+            TestData.meal('Dinner', [('e3', 'Salmon', 150, 310)]),
+          ]),
         );
 
-        provider.addFood(food);
+        await provider.loadDailyNutrition();
 
-        expect(provider.foods.length, 1);
-        expect(provider.foods.first.name, 'Test Food');
+        final foods = provider.todayFoods;
+        expect(foods.map((f) => f.id), ['e1', 'e2', 'e3']);
+        expect(foods.map((f) => f.mealType), ['Breakfast', 'Breakfast', 'Dinner']);
+        expect(foods.first.name, 'Oats');
+        expect(foods.first.calories, 300);
+        expect(foods.first.servingSizeG, 80);
       });
 
-      test('removeFood removes food from list', () {
-        final food = Food(
-          id: 'test-1',
-          name: 'Test Food',
-          calories: 100,
-          protein: 10,
-          carbs: 20,
-          fats: 5,
-          dateAdded: DateTime.now(),
-        );
+      test('totals come from the backend day', () async {
+        when(() => mockGraphQLService.getDailyNutrition(any()))
+            .thenAnswer((_) async => TestData.dailyNutrition(totalCalories: 1234, carbsG: 150, fatG: 42));
 
-        provider.addFood(food);
-        expect(provider.foods.length, 1);
+        await provider.loadDailyNutrition();
 
-        provider.removeFood('test-1');
-        expect(provider.foods, isEmpty);
+        expect(provider.todayCalories, 1234);
+        expect(provider.todayCarbs, 150);
+        expect(provider.todayFats, 42);
       });
 
-      test('todayFoods filters by selected date', () {
-        final today = DateTime.now();
-        final yesterday = today.subtract(const Duration(days: 1));
+      test('loading a date asks the backend for that date', () async {
+        when(() => mockGraphQLService.getDailyNutrition(any()))
+            .thenAnswer((_) async => TestData.dailyNutrition());
 
-        provider.addFood(Food(
-          id: 'today-1',
-          name: 'Today Food',
-          calories: 100,
-          protein: 10,
-          carbs: 20,
-          fats: 5,
-          dateAdded: today,
-        ));
+        provider.setSelectedDate(DateTime(2026, 3, 5));
+        await Future<void>.delayed(Duration.zero);
 
-        provider.addFood(Food(
-          id: 'yesterday-1',
-          name: 'Yesterday Food',
-          calories: 200,
-          protein: 20,
-          carbs: 40,
-          fats: 10,
-          dateAdded: yesterday,
-        ));
-
-        expect(provider.todayFoods.length, 1);
-        expect(provider.todayFoods.first.name, 'Today Food');
-      });
-
-      test('todayCalories sums calories from today foods', () {
-        final today = DateTime.now();
-
-        provider.addFood(Food(
-          id: 'food-1',
-          name: 'Food 1',
-          calories: 100,
-          protein: 10,
-          carbs: 20,
-          fats: 5,
-          dateAdded: today,
-        ));
-
-        provider.addFood(Food(
-          id: 'food-2',
-          name: 'Food 2',
-          calories: 200,
-          protein: 20,
-          carbs: 40,
-          fats: 10,
-          dateAdded: today,
-        ));
-
-        expect(provider.todayCalories, 300);
+        verify(() => mockGraphQLService.getDailyNutrition('2026-03-05')).called(1);
       });
     });
 
@@ -156,28 +108,14 @@ void main() {
         expect(meals.any((m) => m.name == 'Snacks'), false);
       });
 
-      test('updateMealGlobally renames meal and cascades to foods', () {
+      test('updateMealGlobally renames meal', () {
         final today = DateTime.now();
-        provider.addFood(Food(
-          id: 'food-1',
-          name: 'Eggs',
-          calories: 150,
-          protein: 12,
-          carbs: 1,
-          fats: 10,
-          dateAdded: today,
-          mealType: 'Breakfast',
-        ));
 
         provider.updateMealGlobally('Breakfast', MealInfo('Morning Meal', '\u2600', 500));
 
-        // Check meal was renamed
         final meals = provider.getMealsForDate(today);
         expect(meals.any((m) => m.name == 'Morning Meal'), true);
         expect(meals.any((m) => m.name == 'Breakfast'), false);
-
-        // Check food mealType was cascaded
-        expect(provider.foods.first.mealType, 'Morning Meal');
       });
 
       test('reorderMeals changes meal order', () {
@@ -195,25 +133,132 @@ void main() {
       });
     });
 
-    group('favorites', () {
-      test('toggleFavoritePreset adds and removes from favorites', () {
-        expect(provider.favoritePresetIds.contains('p1'), false);
+    group('favorites and recent foods', () {
+      final chicken = NutritionProvider.catalogFood(id: 'food-1', name: 'Chicken', caloriesPer100g: 165);
+      final rice = NutritionProvider.catalogFood(id: 'food-2', name: 'Rice', caloriesPer100g: 130);
 
-        provider.toggleFavoritePreset('p1');
-        expect(provider.favoritePresetIds.contains('p1'), true);
+      void backendAddsEntries() {
+        var n = 0;
+        when(() => mockGraphQLService.addMealEntry(
+              date: any(named: 'date'),
+              mealType: any(named: 'mealType'),
+              foodEntryId: any(named: 'foodEntryId'),
+              quantityG: any(named: 'quantityG'),
+            )).thenAnswer((_) async => _addMealEntryResult('entry-${++n}'));
+        when(() => mockGraphQLService.getDailyNutrition(any()))
+            .thenAnswer((_) async => TestData.dailyNutrition());
+      }
 
-        provider.toggleFavoritePreset('p1');
-        expect(provider.favoritePresetIds.contains('p1'), false);
+      test('toggleFavorite adds and removes a food', () {
+        expect(provider.isFavorite('food-1'), false);
+
+        provider.toggleFavorite(chicken);
+        expect(provider.isFavorite('food-1'), true);
+        expect(provider.favoriteFoods.single.name, 'Chicken');
+
+        provider.toggleFavorite(chicken);
+        expect(provider.isFavorite('food-1'), false);
+        expect(provider.favoriteFoods, isEmpty);
       });
 
-      test('toggleFavoriteRecipe adds and removes from favorites', () {
-        expect(provider.favoriteRecipeIds.contains('r1'), false);
+      test('logged foods become recent, newest first and without duplicates', () async {
+        backendAddsEntries();
 
-        provider.toggleFavoriteRecipe('r1');
-        expect(provider.favoriteRecipeIds.contains('r1'), true);
+        await provider.addFoodToMeal(foodEntryId: 'food-1', mealType: 'Lunch', quantityG: 100, food: chicken);
+        await provider.addFoodToMeal(foodEntryId: 'food-2', mealType: 'Lunch', quantityG: 100, food: rice);
+        await provider.addFoodToMeal(foodEntryId: 'food-1', mealType: 'Dinner', quantityG: 100, food: chicken);
 
-        provider.toggleFavoriteRecipe('r1');
-        expect(provider.favoriteRecipeIds.contains('r1'), false);
+        expect(provider.recentFoods.map((f) => f.name), ['Chicken', 'Rice']);
+      });
+
+      test('a food that failed to save is not added to recent', () async {
+        when(() => mockGraphQLService.addMealEntry(
+              date: any(named: 'date'),
+              mealType: any(named: 'mealType'),
+              foodEntryId: any(named: 'foodEntryId'),
+              quantityG: any(named: 'quantityG'),
+            )).thenThrow(const BackendNetworkException('offline'));
+
+        final entryId = await provider.addFoodToMeal(
+            foodEntryId: 'food-1', mealType: 'Lunch', quantityG: 100, food: chicken);
+
+        expect(entryId, isNull);
+        expect(provider.recentFoods, isEmpty);
+        expect(provider.error, 'Failed to add food');
+      });
+    });
+
+    group('catalog', () {
+      test('foodFromSearchItem keeps per-100 g values and the serving size', () {
+        final item = TestData.foodSearchResult().items.single;
+
+        final food = NutritionProvider.foodFromSearchItem(item);
+
+        expect(food.id, 'food-1');
+        expect(food.name, 'Chicken Breast');
+        expect(food.calories, 165);
+        expect(food.kcalPer100g, 165);
+        expect(food.protein, 31);
+        expect(food.servingSizeG, 100);
+      });
+
+      test('searchFoods passes the entry types to the backend', () async {
+        when(() => mockGraphQLService.searchFoodCatalog(
+              query: any(named: 'query'),
+              limit: any(named: 'limit'),
+              types: any(named: 'types'),
+            )).thenAnswer((_) async => TestData.foodSearchResult());
+
+        await provider.searchFoods('pasta', types: [Enum$FoodEntryType.RECIPE]);
+
+        verify(() => mockGraphQLService.searchFoodCatalog(
+              query: 'pasta',
+              limit: 20,
+              types: [Enum$FoodEntryType.RECIPE],
+            )).called(1);
+      });
+
+      test('searchFoods returns null when the backend fails', () async {
+        when(() => mockGraphQLService.searchFoodCatalog(
+              query: any(named: 'query'),
+              limit: any(named: 'limit'),
+              types: any(named: 'types'),
+            )).thenThrow(const BackendNetworkException('offline'));
+
+        expect(await provider.searchFoods('pasta'), isNull);
+      });
+
+      test('lookupBarcode maps the product to a food', () async {
+        when(() => mockGraphQLService.getFoodByBarcode('5000112637922')).thenAnswer(
+          (_) async => Query$FoodEntryByBarcode$foodEntryByBarcode(
+            id: 'product-1',
+            name: 'Cola',
+            brand: 'Fizz Co',
+            entryType: Enum$FoodEntryType.PRODUCT,
+            barcode: '5000112637922',
+            servingSizeG: 330,
+            caloriesPer100g: 42,
+            proteinPer100g: 0,
+            carbsPer100g: 10.6,
+            fatPer100g: 0,
+          ),
+        );
+
+        final food = await provider.lookupBarcode('5000112637922');
+
+        expect(food!.id, 'product-1');
+        expect(food.brand, 'Fizz Co');
+        expect(food.calories, 42);
+        expect(food.servingSizeG, 330);
+      });
+
+      test('lookupBarcode returns null for unknown or failed lookups', () async {
+        when(() => mockGraphQLService.getFoodByBarcode('unknown')).thenAnswer((_) async => null);
+        when(() => mockGraphQLService.getFoodByBarcode('offline'))
+            .thenThrow(const BackendNetworkException('offline'));
+
+        expect(await provider.lookupBarcode('unknown'), isNull);
+        expect(await provider.lookupBarcode('offline'), isNull);
       });
     });
 
@@ -303,13 +348,13 @@ void main() {
         when(() => mockGraphQLService.getDailyNutrition(any()))
             .thenAnswer((_) async => TestData.dailyNutrition());
 
-        final success = await provider.addFoodToMeal(
+        final entryId = await provider.addFoodToMeal(
           foodEntryId: 'food-1',
           mealType: 'Lunch',
           quantityG: 100,
         );
 
-        expect(success, true);
+        expect(entryId, 'entry-1');
         verify(() => mockGraphQLService.addMealEntry(
               date: any(named: 'date'),
               mealType: 'Lunch',
@@ -373,22 +418,30 @@ void main() {
         expect(percentages['vitamin_c'], 0.5);
       });
     });
-
-    group('presets', () {
-      test('presets list is not empty', () {
-        expect(NutritionProvider.presets.isNotEmpty, true);
-      });
-
-      test('presets have valid data', () {
-        for (final preset in NutritionProvider.presets) {
-          expect(preset.id.isNotEmpty, true);
-          expect(preset.name.isNotEmpty, true);
-          expect(preset.calories >= 0, true);
-          expect(preset.protein >= 0, true);
-          expect(preset.carbs >= 0, true);
-          expect(preset.fats >= 0, true);
-        }
-      });
-    });
   });
+}
+
+Mutation$AddMealEntry$addMealEntry _addMealEntryResult(String entryId) {
+  return Mutation$AddMealEntry$addMealEntry(
+    entry: Mutation$AddMealEntry$addMealEntry$entry(
+      id: entryId,
+      foodEntry: Mutation$AddMealEntry$addMealEntry$entry$foodEntry(id: 'food', name: 'Food'),
+      quantityG: 100,
+      calories: 100,
+    ),
+    mealSummary: Mutation$AddMealEntry$addMealEntry$mealSummary(
+      mealId: 'meal',
+      mealType: 'Lunch',
+      totalCalories: 100,
+      proteinG: 0,
+      carbsG: 0,
+      fatG: 0,
+    ),
+    dailySummary: Mutation$AddMealEntry$addMealEntry$dailySummary(
+      totalCaloriesConsumed: 100,
+      proteinGConsumed: 0,
+      carbsGConsumed: 0,
+      fatGConsumed: 0,
+    ),
+  );
 }

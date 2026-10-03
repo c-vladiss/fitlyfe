@@ -16,8 +16,15 @@ class FoodDetailsPage extends StatefulWidget {
 
 class _FoodDetailsPageState extends State<FoodDetailsPage> {
   late TextEditingController _quantityController;
-  String _selectedUnit = '100g';
-  final List<String> _units = ['100g', 'Serving (150 g)'];
+  // Portions the quantity can be counted in, as (label, grams per unit)
+  late final List<(String, double)> _units = [
+    ('100 g', 100),
+    if (widget.food.servingSizeG != null && widget.food.servingSizeG! > 0)
+      ('Serving (${_formatGrams(widget.food.servingSizeG!)} g)', widget.food.servingSizeG!),
+    ('Gram', 1),
+  ];
+  late (String, double) _selectedUnit = _units.length > 2 ? _units[1] : _units[0];
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -34,37 +41,43 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
     super.dispose();
   }
 
-  void _addFood() {
-    final qty = double.tryParse(_quantityController.text) ?? 1.0;
-    
-    double ratio = 1.0;
-    if (_selectedUnit == 'Serving (150 g)') {
-      ratio = qty * 1.5;
-    } else {
-      ratio = qty;
+  /// Grams described by the quantity field and unit, or null if invalid.
+  double? get _grams {
+    final qty = double.tryParse(_quantityController.text.trim().replaceAll(',', '.'));
+    if (qty == null || qty <= 0) return null;
+    return qty * _selectedUnit.$2;
+  }
+
+  static String _formatGrams(double grams) =>
+      grams == grams.roundToDouble() ? grams.toInt().toString() : grams.toStringAsFixed(1);
+
+  Future<void> _addFood() async {
+    final grams = _grams;
+    final messenger = ScaffoldMessenger.of(context);
+    if (grams == null) {
+      messenger.showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
+      return;
     }
 
-    final scaledMicros = <String, double>{};
-    widget.food.micronutrients.forEach((key, value) {
-      scaledMicros[key] = value * ratio;
-    });
-
-    final newFood = Food(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: widget.food.name,
-      calories: widget.food.calories * ratio,
-      protein: widget.food.protein * ratio,
-      carbs: widget.food.carbs * ratio,
-      fats: widget.food.fats * ratio,
-      micronutrients: scaledMicros,
-      dateAdded: Provider.of<NutritionProvider>(context, listen: false).selectedDate,
-      mealType: widget.mealType,
+    setState(() => _isSaving = true);
+    final provider = Provider.of<NutritionProvider>(context, listen: false);
+    final entryId = await provider.addFoodToMeal(
+      foodEntryId: widget.food.id,
+      mealType: widget.mealType ?? 'Snacks',
+      quantityG: grams,
+      food: widget.food,
     );
-    
-    Provider.of<NutritionProvider>(context, listen: false).addFood(newFood);
-    
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+
+    messenger.clearSnackBars();
+    if (entryId == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not add the food. Please try again.')),
+      );
+      return;
+    }
+    messenger.showSnackBar(
       const SnackBar(
         content: Row(
           children: [
@@ -78,16 +91,28 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
         behavior: SnackBarBehavior.floating,
       )
     );
-    Navigator.pop(context, newFood);
+    // The logged entry, so the caller can list (and undo) it
+    final ratio = grams / 100;
+    Navigator.pop(
+      context,
+      widget.food.copyWith(
+        id: entryId,
+        calories: widget.food.calories * ratio,
+        protein: widget.food.protein * ratio,
+        carbs: widget.food.carbs * ratio,
+        fats: widget.food.fats * ratio,
+        servingSizeG: grams,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<NutritionProvider>(context);
-    final isFavorite = provider.favoritePresetIds.contains(widget.food.id);
+    final isFavorite = provider.isFavorite(widget.food.id);
 
-    final qty = double.tryParse(_quantityController.text) ?? 1.0;
-    double ratio = _selectedUnit == 'Serving (150 g)' ? qty * 1.5 : qty;
+    // Nutrition values are per 100 g
+    final ratio = (_grams ?? 0) / 100;
 
     final currentCalories = widget.food.calories * ratio;
     final currentCarbs = widget.food.carbs * ratio;
@@ -114,7 +139,8 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
               isFavorite ? Icons.star : Icons.star_border,
               color: isFavorite ? AppTheme.accentYellow : AppTheme.accentGreen,
             ),
-            onPressed: () => provider.toggleFavoritePreset(widget.food.id),
+            tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+            onPressed: () => provider.toggleFavorite(widget.food),
           ),
         ],
       ),
@@ -135,9 +161,17 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
                     ),
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    widget.food.name,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryText),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.food.name,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryText),
+                      ),
+                      if (widget.food.brand != null && widget.food.brand!.isNotEmpty)
+                        Text(widget.food.brand!, style: const TextStyle(color: AppTheme.secondaryText, fontSize: 14)),
+                    ],
                   ),
                 ),
                 
@@ -159,61 +193,6 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
 
                 const SizedBox(height: 24),
 
-                // Badges
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.verified, color: AppTheme.accentBlue, size: 16),
-                    const SizedBox(width: 8),
-                    const Text('Verified nutrition facts', style: TextStyle(color: AppTheme.secondaryText, fontSize: 13)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.history, color: AppTheme.accentGreen.withValues(alpha: 0.8), size: 16),
-                    const SizedBox(width: 8),
-                    const Text('Recently logged', style: TextStyle(color: AppTheme.secondaryText, fontSize: 13)),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                // Food Rating Banner
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardBackground,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text('Food Rating', style: TextStyle(color: AppTheme.primaryText, fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Our smart food rating tells you what is good and bad about this food.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.secondaryText, fontSize: 13),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accentGreen, 
-                          foregroundColor: AppTheme.backgroundColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                        ),
-                        onPressed: () {},
-                        child: const Text('Unlock All', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
                 // Nutrition Facts
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),
@@ -224,8 +203,7 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
                 _buildNutritionRow('Calories', '${currentCalories.round()} kcal', isBold: true),
                 _buildNutritionRow('Protein', '${currentProtein.toStringAsFixed(1)} g', isBold: true),
                 _buildNutritionRow('Carbs', '${currentCarbs.toStringAsFixed(1)} g', isBold: true),
-                _buildNutritionRow('Fibre', '---', showProBadge: true),
-                _buildNutritionRow('of which Sugars', '---', showProBadge: true),
+                _buildNutritionRow('Fat', '${currentFats.toStringAsFixed(1)} g', isBold: true),
                 
               ],
             ),
@@ -258,6 +236,7 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
                             border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
                           ),
                           child: TextField(
+                            key: const Key('quantityField'),
                             controller: _quantityController,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             textAlign: TextAlign.center,
@@ -282,7 +261,7 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
                             border: Border.all(color: AppTheme.secondaryText.withValues(alpha: 0.1)),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
+                            child: DropdownButton<(String, double)>(
                               value: _selectedUnit,
                               icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.secondaryText),
                               dropdownColor: AppTheme.backgroundColor,
@@ -291,7 +270,7 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
                               items: _units.map((unit) {
                                 return DropdownMenuItem(
                                   value: unit,
-                                  child: Text(unit),
+                                  child: Text(unit.$1),
                                 );
                               }).toList(),
                               onChanged: (val) {
@@ -317,8 +296,14 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
                         foregroundColor: AppTheme.backgroundColor,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                       ),
-                      onPressed: _addFood,
-                      child: const Text('Add', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      onPressed: _isSaving ? null : _addFood,
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.backgroundColor),
+                            )
+                          : const Text('Add', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -340,7 +325,7 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
     );
   }
 
-  Widget _buildNutritionRow(String label, String value, {bool isBold = false, bool showProBadge = false}) {
+  Widget _buildNutritionRow(String label, String value, {bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -354,16 +339,6 @@ class _FoodDetailsPageState extends State<FoodDetailsPage> {
               fontSize: 15,
             ),
           ),
-          if (showProBadge)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.accentYellow,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text('Pro', style: TextStyle(color: AppTheme.backgroundColor, fontSize: 10, fontWeight: FontWeight.bold)),
-            )
-          else
             Text(
               value,
               style: TextStyle(
